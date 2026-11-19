@@ -69,6 +69,19 @@ set(ADDITIONAL_LIB_INCLUDES "")
 option(INCLUDE_MPQ_SUPPORT "Enable StormLib and MPQ archive support" OFF)
 set(GBI_UCODE F3DEX_GBI_2 CACHE STRING "Specify the GBI ucode version")
 option(THREE_DS_RECOMP_ENABLE_DX11 "Build the legacy Direct3D 11 backend on Windows" OFF)
+option(THREE_DS_RECOMP_ENABLE_D3D12_PROBE
+	"Build the isolated Direct3D 12 device probe (Windows desktop compile check only)" OFF)
+if(THREE_DS_RECOMP_ENABLE_D3D12_PROBE)
+	if(NOT WIN32)
+		message(FATAL_ERROR "The Direct3D 12 probe currently requires a Windows SDK host")
+	endif()
+	add_library(triaevum_d3d12_probe STATIC
+		src/fast/backends/gfx_d3d12_probe.cpp)
+	target_include_directories(triaevum_d3d12_probe PUBLIC
+		"${CMAKE_CURRENT_SOURCE_DIR}/include")
+	target_compile_features(triaevum_d3d12_probe PUBLIC cxx_std_20)
+	target_link_libraries(triaevum_d3d12_probe PUBLIC d3d12 dxgi)
+endif()
 option(THREE_DS_RECOMP_ENABLE_VULKAN "Build the native 3DS Vulkan backend" OFF)
 option(THREE_DS_RECOMP_ENABLE_NRI "Enable NVIDIA NRI interop for the native 3DS Vulkan backend" ${THREE_DS_RECOMP_ENABLE_VULKAN})
 cmake_dependent_option(THREE_DS_RECOMP_ENABLE_NRI_UPSCALER_SDKS
