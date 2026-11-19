@@ -75,3 +75,24 @@ The first code milestone is a minimal D3D12 device/swap-chain/present probe
 inside the confirmed UWP host, followed by a backend contract implementation
 for clear + triangle + texture upload. Only after that works on the console
 should the full PICA renderer and effect graph be migrated.
+
+
+## First code milestone (2026-11-19)
+
+An opt-in, isolated D3D12 device probe has been added:
+
+- `THREE_DS_RECOMP_ENABLE_D3D12_PROBE=ON` builds the
+  `triaevum_d3d12_probe` static library on a Windows SDK host.
+- `Fast::D3D12Probe::TryCreateHardwareDevice()` calls
+  `D3D12CreateDevice` at feature level 11_0 and returns the HRESULT and a
+  diagnostic message.
+- The probe is deliberately separate from the Vulkan renderer and is OFF by
+  default. It does not change the current rendering backend.
+
+**Validation boundary:** this is only a Windows desktop SDK compile/runtime
+probe. It does not create a swap chain, does not prove that the Xbox Dev Mode
+UWP app model exposes D3D12, and is not evidence of a working Xbox port.
+Before using this code in the Xbox host, confirm the supported Xbox UWP SDK
+contract and compile/run the probe on the actual Series S target. If the
+target's UWP API surface does not expose the required D3D12 interfaces, the
+renderer plan must be revised rather than bypassing platform restrictions.
