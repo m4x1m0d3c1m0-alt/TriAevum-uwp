@@ -96,3 +96,40 @@ Before using this code in the Xbox host, confirm the supported Xbox UWP SDK
 contract and compile/run the probe on the actual Series S target. If the
 target's UWP API surface does not expose the required D3D12 interfaces, the
 renderer plan must be revised rather than bypassing platform restrictions.
+
+
+## D3D12 host smoke-test milestone (2026-11-19)
+
+The isolated probe now has a standalone executable and exercises more than
+device creation. TryCreateCoreObjects() creates a hardware D3D12 device,
+a direct command queue, a two-entry non-shader-visible RTV descriptor heap,
+and a fence, then checks that the RTV descriptor increment is non-zero.
+The executable reports the device and core-object results separately.
+
+A GitHub Actions job compiles this probe with MSVC and the Windows SDK. The
+initial device-only version passed. The expanded queue/heap/fence version is
+being checked by the subsequent workflow runs.
+
+### Xbox API research note
+
+Microsoft's Xbox Series X|S UWP guidance distinguishes App Mode from Game
+Mode. It reports Direct3D 12 Feature Level 11.0 for Series X|S in both modes,
+with Shader Models 5.1 through 6.4; the documented WARP exception in
+Developer Mode is not a retail GPU-acceleration path. See:
+https://walbourn.github.io/directx-and-uwp-on-xbox-series-x-s/
+
+This makes D3D12 a plausible target for the Series S Dev Mode app, but it
+does not validate this project's UWP package, swap-chain path, or actual
+console runtime. The next console-specific gate remains a UWP-hosted
+swap-chain + clear/present test on the Series S itself.
+
+### Current validation matrix
+
+| Check | Result |
+|---|---|
+| Standalone D3D12 device probe compiled with Windows SDK/MSVC | Passed |
+| Direct queue + RTV heap + fence creation on Windows host | Workflow validation pending |
+| Xbox Series S UWP package compilation | Not done |
+| Xbox UWP swap-chain and present on hardware | Not done |
+| TriAevum PICA D3D12 renderer | Not implemented |
+| Installable Xbox package / gameplay test | Not available |
