@@ -51,6 +51,21 @@ static PFN_vkGetDeviceProcAddr gdpa;
 static PFN_vkCreateSwapchainKHR pCreateSwapchain;
 static PFN_vkDestroySwapchainKHR pDestroySwapchain;
 static PFN_vkDestroyDevice pDestroyDevice;
+static PFN_vkGetDeviceQueue pGetDeviceQueue;
+static PFN_vkGetSwapchainImagesKHR pGetSwapchainImages;
+static PFN_vkAcquireNextImageKHR pAcquireNextImage;
+static PFN_vkQueuePresentKHR pQueuePresent;
+static PFN_vkQueueSubmit pQueueSubmit;
+static PFN_vkQueueWaitIdle pQueueWaitIdle;
+static PFN_vkCreateCommandPool pCreateCommandPool;
+static PFN_vkDestroyCommandPool pDestroyCommandPool;
+static PFN_vkAllocateCommandBuffers pAllocateCommandBuffers;
+static PFN_vkBeginCommandBuffer pBeginCommandBuffer;
+static PFN_vkEndCommandBuffer pEndCommandBuffer;
+static PFN_vkCmdPipelineBarrier pCmdPipelineBarrier;
+static PFN_vkCmdClearColorImage pCmdClearColorImage;
+static PFN_vkCreateSemaphore pCreateSemaphore;
+static PFN_vkDestroySemaphore pDestroySemaphore;
 static void Result(const char* label,VkResult r){char b[160];sprintf_s(b,"%s => VkResult %d",label,(int)r);Log(b);}
 static bool Probe(){
  Log("Loading packaged vulkan_dzn.dll");
@@ -90,14 +105,56 @@ static bool Probe(){
  const char* dex[]={VK_KHR_SWAPCHAIN_EXTENSION_NAME};VkDeviceCreateInfo di{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};di.queueCreateInfoCount=1;di.pQueueCreateInfos=&qi;di.enabledExtensionCount=1;di.ppEnabledExtensionNames=dex;
  r=pCreateDevice(gpu,&di,nullptr,&device);Result("vkCreateDevice",r);if(r!=VK_SUCCESS)return false;
  DEV(pCreateSwapchain,vkCreateSwapchainKHR);DEV(pDestroySwapchain,vkDestroySwapchainKHR);DEV(pDestroyDevice,vkDestroyDevice);
+ DEV(pGetDeviceQueue,vkGetDeviceQueue);DEV(pGetSwapchainImages,vkGetSwapchainImagesKHR);
+ DEV(pAcquireNextImage,vkAcquireNextImageKHR);DEV(pQueuePresent,vkQueuePresentKHR);
+ DEV(pQueueSubmit,vkQueueSubmit);DEV(pQueueWaitIdle,vkQueueWaitIdle);
+ DEV(pCreateCommandPool,vkCreateCommandPool);DEV(pDestroyCommandPool,vkDestroyCommandPool);
+ DEV(pAllocateCommandBuffers,vkAllocateCommandBuffers);DEV(pBeginCommandBuffer,vkBeginCommandBuffer);
+ DEV(pEndCommandBuffer,vkEndCommandBuffer);DEV(pCmdPipelineBarrier,vkCmdPipelineBarrier);
+ DEV(pCmdClearColorImage,vkCmdClearColorImage);DEV(pCreateSemaphore,vkCreateSemaphore);
+ DEV(pDestroySemaphore,vkDestroySemaphore);
  VkSurfaceCapabilitiesKHR caps{};r=pSurfaceCaps(gpu,surface,&caps);Result("Surface capabilities",r);if(r!=VK_SUCCESS)return false;
+ if(!(caps.supportedUsageFlags&VK_IMAGE_USAGE_TRANSFER_DST_BIT)){Log("Surface does not support VK_IMAGE_USAGE_TRANSFER_DST_BIT; cannot run clear/present test");return false;}
  uint32_t fn=0;r=pSurfaceFormats(gpu,surface,&fn,nullptr);Result("Surface formats count",r);if(r!=VK_SUCCESS||!fn)return false;
  std::vector<VkSurfaceFormatKHR> formats(fn);r=pSurfaceFormats(gpu,surface,&fn,formats.data());if(r!=VK_SUCCESS)return false;
  VkExtent2D extent=caps.currentExtent;if(extent.width==UINT32_MAX){extent.width=uwp_get_width();extent.height=uwp_get_height();}
  uint32_t count=(std::max)(2u,caps.minImageCount);if(caps.maxImageCount&&count>caps.maxImageCount)count=caps.maxImageCount;
- VkSwapchainCreateInfoKHR si{VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};si.surface=surface;si.minImageCount=count;si.imageFormat=formats[0].format;si.imageColorSpace=formats[0].colorSpace;si.imageExtent=extent;si.imageArrayLayers=1;si.imageUsage=VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;si.imageSharingMode=VK_SHARING_MODE_EXCLUSIVE;si.preTransform=caps.currentTransform;si.compositeAlpha=VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;si.presentMode=VK_PRESENT_MODE_FIFO_KHR;si.clipped=VK_TRUE;
+ VkSwapchainCreateInfoKHR si{VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};si.surface=surface;si.minImageCount=count;si.imageFormat=formats[0].format;si.imageColorSpace=formats[0].colorSpace;si.imageExtent=extent;si.imageArrayLayers=1;si.imageUsage=VK_IMAGE_USAGE_TRANSFER_DST_BIT;si.imageSharingMode=VK_SHARING_MODE_EXCLUSIVE;si.preTransform=caps.currentTransform;si.compositeAlpha=VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;si.presentMode=VK_PRESENT_MODE_FIFO_KHR;si.clipped=VK_TRUE;
  r=pCreateSwapchain(device,&si,nullptr,&swapchain);Result("vkCreateSwapchainKHR(CoreWindow)",r);if(r!=VK_SUCCESS)return false;
- sprintf_s(inf,"PASS: Vulkan device + CoreWindow swapchain %ux%u",extent.width,extent.height);Log(inf);return true;
+ VkQueue queue=VK_NULL_HANDLE;pGetDeviceQueue(device,family,0,&queue);if(!queue){Log("vkGetDeviceQueue returned VK_NULL_HANDLE");return false;}
+ uint32_t imageCount=0;r=pGetSwapchainImages(device,swapchain,&imageCount,nullptr);Result("vkGetSwapchainImagesKHR(count)",r);if(r!=VK_SUCCESS||!imageCount)return false;
+ std::vector<VkImage> images(imageCount);r=pGetSwapchainImages(device,swapchain,&imageCount,images.data());Result("vkGetSwapchainImagesKHR(data)",r);if(r!=VK_SUCCESS||!imageCount)return false;
+ VkSemaphoreCreateInfo semInfo{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};VkSemaphore acquired=VK_NULL_HANDLE,rendered=VK_NULL_HANDLE;
+ r=pCreateSemaphore(device,&semInfo,nullptr,&acquired);Result("vkCreateSemaphore(acquire)",r);if(r!=VK_SUCCESS)return false;
+ r=pCreateSemaphore(device,&semInfo,nullptr,&rendered);Result("vkCreateSemaphore(render)",r);if(r!=VK_SUCCESS){pDestroySemaphore(device,acquired,nullptr);return false;}
+ VkCommandPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};poolInfo.queueFamilyIndex=family;
+ VkCommandPool pool=VK_NULL_HANDLE;r=pCreateCommandPool(device,&poolInfo,nullptr,&pool);Result("vkCreateCommandPool",r);if(r!=VK_SUCCESS){pDestroySemaphore(device,rendered,nullptr);pDestroySemaphore(device,acquired,nullptr);return false;}
+ uint32_t imageIndex=0;r=pAcquireNextImage(device,swapchain,UINT64_MAX,acquired,VK_NULL_HANDLE,&imageIndex);Result("vkAcquireNextImageKHR",r);if(r!=VK_SUCCESS&&r!=VK_SUBOPTIMAL_KHR){pDestroyCommandPool(device,pool,nullptr);pDestroySemaphore(device,rendered,nullptr);pDestroySemaphore(device,acquired,nullptr);return false;}
+ VkCommandBufferAllocateInfo alloc{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};alloc.commandPool=pool;alloc.level=VK_COMMAND_BUFFER_LEVEL_PRIMARY;alloc.commandBufferCount=1;
+ VkCommandBuffer cmd=VK_NULL_HANDLE;r=pAllocateCommandBuffers(device,&alloc,&cmd);Result("vkAllocateCommandBuffers",r);if(r!=VK_SUCCESS){pDestroyCommandPool(device,pool,nullptr);pDestroySemaphore(device,rendered,nullptr);pDestroySemaphore(device,acquired,nullptr);return false;}
+ VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};begin.flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+ r=pBeginCommandBuffer(cmd,&begin);Result("vkBeginCommandBuffer",r);
+ if(r==VK_SUCCESS){
+  VkImageMemoryBarrier toClear{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};toClear.srcAccessMask=0;toClear.dstAccessMask=VK_ACCESS_TRANSFER_WRITE_BIT;toClear.oldLayout=VK_IMAGE_LAYOUT_UNDEFINED;toClear.newLayout=VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;toClear.srcQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;toClear.dstQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;toClear.image=images[imageIndex];toClear.subresourceRange={VK_IMAGE_ASPECT_COLOR_BIT,0,1,0,1};
+  pCmdPipelineBarrier(cmd,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,0,0,nullptr,0,nullptr,1,&toClear);
+  VkClearColorValue color{{0.035f,0.12f,0.28f,1.0f}};VkImageSubresourceRange range{VK_IMAGE_ASPECT_COLOR_BIT,0,1,0,1};
+  pCmdClearColorImage(cmd,images[imageIndex],VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,&color,1,&range);
+  VkImageMemoryBarrier toPresent{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};toPresent.srcAccessMask=VK_ACCESS_TRANSFER_WRITE_BIT;toPresent.dstAccessMask=0;toPresent.oldLayout=VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;toPresent.newLayout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;toPresent.srcQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;toPresent.dstQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;toPresent.image=images[imageIndex];toPresent.subresourceRange=range;
+  pCmdPipelineBarrier(cmd,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,0,0,nullptr,0,nullptr,1,&toPresent);
+  r=pEndCommandBuffer(cmd);Result("vkEndCommandBuffer",r);
+ }
+ if(r==VK_SUCCESS){
+  VkPipelineStageFlags waitStage=VK_PIPELINE_STAGE_TRANSFER_BIT;VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};submit.waitSemaphoreCount=1;submit.pWaitSemaphores=&acquired;submit.pWaitDstStageMask=&waitStage;submit.commandBufferCount=1;submit.pCommandBuffers=&cmd;submit.signalSemaphoreCount=1;submit.pSignalSemaphores=&rendered;
+  r=pQueueSubmit(queue,1,&submit,VK_NULL_HANDLE);Result("vkQueueSubmit(clear)",r);
+ }
+ if(r==VK_SUCCESS){
+  VkPresentInfoKHR present{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};present.waitSemaphoreCount=1;present.pWaitSemaphores=&rendered;present.swapchainCount=1;present.pSwapchains=&swapchain;present.pImageIndices=&imageIndex;
+  r=pQueuePresent(queue,&present);Result("vkQueuePresentKHR(clear frame)",r);
+  if(r==VK_SUCCESS||r==VK_SUBOPTIMAL_KHR){VkResult idle=pQueueWaitIdle(queue);Result("vkQueueWaitIdle(after present)",idle);if(idle==VK_SUCCESS)Log("PASS: presented one Vulkan clear-color frame to CoreWindow");else r=idle;}
+ }
+ pDestroyCommandPool(device,pool,nullptr);pDestroySemaphore(device,rendered,nullptr);pDestroySemaphore(device,acquired,nullptr);
+ if(r!=VK_SUCCESS&&r!=VK_SUBOPTIMAL_KHR)return false;
+ sprintf_s(inf,"PROBE FRAME: %ux%u",extent.width,extent.height);Log(inf);return true;
 }
 struct ProbeView:winrt::implements<ProbeView,core::IFrameworkView>{
  void Initialize(core::CoreApplicationView const&){OpenLog();}
