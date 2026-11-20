@@ -5,14 +5,14 @@
   xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
   IgnorableNamespaces="uap mp">
   <Identity
-    Name="TriAevumXboxDevModeHost"
+    Name="TriAevumVulkanProbe"
     Publisher="CN=TriAevumXboxDevMode"
     Version="0.1.0.1" />
   <mp:PhoneIdentity
-    PhoneProductId="9d67b54e-2b2c-4e71-9a31-6f6f0b8e5c42"
+    PhoneProductId="c4d8f20a-9e12-4b87-9d61-2a0e7f13b5c9"
     PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
-    <DisplayName>TriAevum D3D12 Test</DisplayName>
+    <DisplayName>TriAevum Vulkan Probe</DisplayName>
     <PublisherDisplayName>TriAevum Dev Build</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
@@ -28,8 +28,8 @@
   <Applications>
     <Application Id="App" Executable="$targetnametoken$.exe" EntryPoint="App">
       <uap:VisualElements
-        DisplayName="TriAevum D3D12 Test"
-        Description="Direct3D 12 CoreWindow presentation smoke test"
+        DisplayName="TriAevum Vulkan Probe"
+        Description="Vulkan Dozen CoreWindow initialization probe"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png"
         BackgroundColor="#101828">
