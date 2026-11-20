@@ -58,3 +58,14 @@ El CMake Vulkan actual localiza `shaderc_shared.dll` dentro del Vulkan SDK de es
 - No activar NRI, NGX/DLSS ni efectos opcionales por defecto hasta que cada uno pase sus comprobaciones.
 - No afirmar que TriAevum está portado hasta que su propio backend presente una escena real en la Series S.
 - Mantener licencias y atribuciones de Mesa, Volk, SDL y NRI si se incorporan fuentes de terceros.
+
+
+## Paso intermedio añadido: inventario de capacidades en la consola
+
+Antes de enlazar el backend real, amplié el probe a la versión 0.1.0.4 para que capture el perfil del adaptador real. Además de extensiones y swapchain, ahora registra:
+- features Vulkan core seleccionadas (geometría, tessellation, indirect draw, anisotropía, formatos BC, storage images, indexación dinámica, shader int64/float64, etc.);
+- features Vulkan 1.1/1.2 relevantes para descriptor indexing, runtime descriptor arrays, scalar block layout, timeline semaphores, buffer device address y shader output viewport/layer;
+- límites de push constants, storage/uniform buffers, descriptores, attachments, dimensiones de imagen/framebuffer y alineaciones;
+- capacidades de superficie y formatos de presentación.
+
+La razón para hacer este paso antes del dispatch UWP es evitar implementar un camino NRI/renderer que active características que el driver de Xbox no ofrece. La versión 0.1.0.4 es una prueba de diagnóstico; todavía no modifica el backend de TriAevum.
