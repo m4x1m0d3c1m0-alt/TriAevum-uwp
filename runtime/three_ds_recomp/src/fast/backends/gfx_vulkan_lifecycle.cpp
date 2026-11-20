@@ -6,7 +6,7 @@
 
 namespace Fast {
 
-GfxRenderingAPIVulkan::GfxRenderingAPIVulkan(GfxWindowBackendSDL2* windowBackend)
+GfxRenderingAPIVulkan::GfxRenderingAPIVulkan(GfxWindowBackend* windowBackend)
     : mWindowBackend(windowBackend),
       mSceneSurfaces([this](const Extension::SceneSurface& surface) {
           if (surface.NativeImage != 0)
@@ -130,10 +130,11 @@ void GfxRenderingAPIVulkan::Init() {
     if (mInitialized) {
         return;
     }
-    if (mWindowBackend == nullptr || !mWindowBackend->UsesVulkan()) {
+    auto* sdlWindowBackend = dynamic_cast<GfxWindowBackendSDL2*>(mWindowBackend);
+    if (sdlWindowBackend == nullptr || !sdlWindowBackend->UsesVulkan()) {
         throw std::runtime_error("Vulkan renderer was paired with a non-Vulkan SDL backend");
     }
-    if (mWindowBackend->GetNativeWindow() == nullptr) {
+    if (sdlWindowBackend->GetNativeWindow() == nullptr) {
         throw std::runtime_error(std::string("SDL Vulkan window creation failed: ") + SDL_GetError());
     }
 
