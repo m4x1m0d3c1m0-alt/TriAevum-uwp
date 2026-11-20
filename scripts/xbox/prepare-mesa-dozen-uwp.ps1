@@ -21,13 +21,22 @@ $uwp = Join-Path $MesaDirectory "uwp"
 New-Item -ItemType Directory -Force -Path $uwp | Out-Null
 Copy-Item (Join-Path $vendor "mesa_sysstubs.c") (Join-Path $uwp "mesa_sysstubs.c") -Force
 Copy-Item (Join-Path $vendor "mesa_uwp_compat.h") (Join-Path $uwp "mesa_uwp_compat.h") -Force
-# Capturar stderr como salida normal: PowerShell puede tratar el stderr de Git como excepcion con ErrorActionPreference=Stop.
-git -C $MesaDirectory apply --reverse --check $patch 2>&1 | Out-Null
-if ($LASTEXITCODE -eq 0) {
+# Los ejecutables nativos pueden emitir NativeCommandError por stderr en Windows
+# PowerShell incluso si el codigo de salida distinto de cero es esperado.
+$previousErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+git -C $MesaDirectory apply --reverse --check $patch 2>$null
+$reverseCheckExit = $LASTEXITCODE
+$ErrorActionPreference = $previousErrorActionPreference
+if ($reverseCheckExit -eq 0) {
   Write-Host "El parche Dozen UWP ya estaba aplicado; no se repite."
 } else {
+  $previousErrorActionPreference = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
   git -C $MesaDirectory apply --check $patch
-  if ($LASTEXITCODE -ne 0) { throw "El parche no aplica limpiamente a esta revisión de Mesa. No se ha forzado." }
+  $forwardCheckExit = $LASTEXITCODE
+  $ErrorActionPreference = $previousErrorActionPreference
+  if ($forwardCheckExit -ne 0) { throw "El parche no aplica limpiamente a esta revision de Mesa. No se ha forzado." }
   git -C $MesaDirectory apply $patch
   if ($LASTEXITCODE -ne 0) { throw "No se pudo aplicar el parche Mesa Dozen UWP." }
 }
