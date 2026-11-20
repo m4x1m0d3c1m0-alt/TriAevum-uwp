@@ -93,6 +93,7 @@ void CloseDiagnosticLog() noexcept {
 struct D3D12CoreWindowView
     : winrt::implements<D3D12CoreWindowView, core::IFrameworkView> {
     void Initialize(core::CoreApplicationView const&) {
+        OpenDiagnosticLog();
         LogDiagnostic("IFrameworkView.Initialize");
     }
 
@@ -107,7 +108,6 @@ struct D3D12CoreWindowView
     void Load(winrt::hstring const&) {}
 
     void Run() {
-        OpenDiagnosticLog();
         LogDiagnostic("Run entered");
         try {
             g_diagnosticStage = "CoreWindow.Activate";
