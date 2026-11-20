@@ -81,7 +81,7 @@ Se ha incorporado una primera infraestructura basada en el material público de 
 
 - `third_party/mesa-dozen-uwp/patches/mesa-dozen-xbox.patch`: parche WSI CoreWindow y correcciones Dozen de esa referencia.
 - `third_party/mesa-dozen-uwp/mesa_sysstubs.c` y `mesa_uwp_compat.h`: compatibilidad UWP/clang-cl.
-- `scripts/xbox/prepare-mesa-dozen-uwp.ps1`: fija Mesa en la revisión `a44c011`, prepara los stubs y aplica el parche de forma idempotente.
+- `scripts/xbox/prepare-mesa-dozen-uwp.ps1`: obtiene la rama estable `26.2` de Mesa y fija el árbol en el commit actual de esa rama, prepara los stubs y aplica el parche de forma idempotente.
 - `scripts/xbox/build-mesa-dozen-uwp.ps1`: compila Dozen con entorno VS `x64 store`; prepara un venv Python con Meson/Ninja y dependencias.
 - `platform/xbox_uwp_vulkan_probe/`: aplicación UWP independiente que carga `vulkan_dzn.dll`, crea instancia/dispositivo Vulkan y solicita una swapchain sobre CoreWindow.
 - `scripts/xbox/build-xbox-vulkan-probe.ps1`: empaquetado del probe con Dozen UWP y DXIL.dll proporcionados localmente.
