@@ -30,7 +30,10 @@ bool GfxRenderingAPIVulkan::QueueFamilies::Complete() const {
 }
 
 void GfxRenderingAPIVulkan::CreateInstance() {
-    auto* window = static_cast<SDL_Window*>(mWindowBackend->GetNativeWindow());
+    auto* sdlWindowBackend = dynamic_cast<GfxWindowBackendSDL2*>(mWindowBackend);
+    if (sdlWindowBackend == nullptr)
+        throw std::runtime_error("SDL Vulkan surface requested without an SDL2 window provider");
+    auto* window = static_cast<SDL_Window*>(sdlWindowBackend->GetNativeWindow());
     std::vector<const char*> extensions;
 #ifdef _WIN32
     extensions = {VK_KHR_SURFACE_EXTENSION_NAME,
