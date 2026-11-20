@@ -159,3 +159,44 @@ E. Adaptar el loader NRI a UWP y volver a habilitar NRI.
 F. Reincorporar shaders/runtime de compilación y módulos opcionales según su compatibilidad real.
 
 No se considera terminado ningún hito por compilar únicamente: cada fase necesita prueba de arranque en la Xbox y un registro de resultado.
+
+## Tercera auditoría: seam de plataforma y dependencias SDL restantes (20-11-2026)
+
+Se revisaron el contrato base de ventana, la cabecera privada del backend y la selección de colas del dispositivo.
+
+### Lo que ya existe y conviene reutilizar
+
+- GfxWindowBackend (include/fast/backends/gfx_window_manager_api.h) es una interfaz abstracta que ya representa el ciclo de vida, eventos, dimensiones, mandos/teclado y presentación de la ventana.
+- GfxWindowBackendSDL2 (include/fast/backends/gfx_sdl.h) implementa esa interfaz, pero GfxRenderingAPIVulkan todavía recibe específicamente GfxWindowBackendSDL2*. El renderer no aprovecha actualmente el contrato abstracto.
+- Esto permite una refactorización gradual: el renderer Vulkan debe depender del contrato abstracto y de un pequeño contrato Vulkan de superficie/contexto, no de SDL. El backend SDL seguirá aportando su HWND y extensiones WSI en escritorio; el host UWP aportará el CoreWindow IUnknown y las mismas extensiones Vulkan que ya validó el probe.
+- No conviene añadir métodos WinRT a la interfaz genérica de ventana: el tipo WinRT debe quedar en un adaptador UWP aislado para que los headers portables y los builds desktop no necesiten C++/WinRT.
+
+### Dependencias SDL concretas que aún bloquean una sustitución directa
+
+1. gfx_vulkan_internal.h incluye gfx_sdl.h, SDL.h, SDL_vulkan.h y SDL_syswm.h en todas las unidades privadas del renderer. Esas inclusiones deben salir de la cabecera compartida y quedar dentro de una implementación de adaptador SDL/desktop.
+2. ResolveNriNativeWindow(GfxWindowBackendSDL2*) convierte la ventana SDL en HWND. NRI no debe recibir el CoreWindow como HWND Win32 ordinario; la ventana nativa de NRI debe ser opcional y específica de cada proveedor. Para el primer hito UWP, NRI permanece apagado.
+3. VulkanShaderCacheDirectory() usa SDL_GetPrefPath() como fallback. El host UWP debe suministrar el directorio escribible bajo ApplicationData::Current().LocalFolder() mediante TRIAEVUM_RENDERER_CACHE_DIR; el backend no debe intentar consultar SDL en UWP.
+4. CreateLogicalDevice() usa SDL_GetCurrentVideoDriver() como entrada para ResolveVulkanQueueTopology(). La política de colas debe recibir una etiqueta de plataforma/WSI explícita (por ejemplo win32, corewindow, sdl-x11) o un valor vacío documentado, nunca consultar SDL desde el backend Vulkan.
+5. La selección de colas, creación de superficie y ruta de tearing/presentación son responsabilidades distintas. El adaptador UWP puede usar FIFO inicialmente; no debe fingir que soporta tearing o modos de ventana de escritorio.
+6. El contrato base de ventana ya expone GetDimensions, IsRunning, HandleEvents, IsFrameReady y SwapBuffersBegin/End, pero todavía no expone una superficie Vulkan. Esa capacidad debe añadirse como interfaz específica/inyectada del backend Vulkan, no como un puntero HWND genérico.
+
+### Decisión de refactorización
+
+El primer cambio de código del runtime no será reemplazar SDL_Window* por void*. Será introducir un contexto de plataforma Vulkan pequeño y explícito con:
+- tipo de WSI (SDL desktop o CoreWindow UWP);
+- lista de extensiones de instancia requeridas por el host;
+- función/callback de creación y destrucción de superficie, o un objeto nativo WinRT aislado detrás de compilación UWP;
+- etiqueta de plataforma para la política de colas;
+- ruta de caché proporcionada por el host.
+
+El renderer Vulkan conservará toda su lógica de GPU y seguirá usando el mismo dispositivo/colas/swapchain. SDL será un proveedor de ese contexto para escritorio; un host WinRT será el proveedor UWP. Así se evita contaminar las unidades Vulkan con dependencias SDL y se evita tratar CoreWindow como HWND convencional.
+
+### Orden inmediato revisado
+
+1. Extraer el contrato VulkanPlatformContext y un adaptador SDL que reproduzca exactamente el comportamiento actual; compilar desktop para demostrar que no hay regresión.
+2. Convertir GfxRenderingAPIVulkan de GfxWindowBackendSDL2* a GfxWindowBackend* más el contexto Vulkan explícito; reemplazar las consultas SDL internas por datos del contexto.
+3. Añadir el proveedor CoreWindow en un target UWP independiente, reutilizando el patrón del probe y sin importar SDL SysWM.
+4. En paralelo, implementar la dispatch con Volk personalizada para runtime e ImGui; NRI seguirá apagado hasta resolver su loader propio.
+5. Compilar desktop y el host UWP en cada cambio antes de instalar el APPX.
+
+No se ha modificado todavía el código de runtime en esta auditoría. Este documento registra el seam concreto y el orden de refactorización para que el primer cambio de código sea pequeño, reversible y verificable.
