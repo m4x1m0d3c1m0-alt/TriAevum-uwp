@@ -345,8 +345,7 @@ struct D3D12CoreWindowViewSource
 
 int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     try {
-        winrt::init_apartment(winrt::apartment_type::single_threaded);
-        LogDiagnostic("wWinMain: apartment initialized");
+        OutputDebugStringA("TriAevum D3D12 host: entering CoreApplication::Run\r\n");
         core::CoreApplication::Run(winrt::make<D3D12CoreWindowViewSource>());
         LogDiagnostic("wWinMain: CoreApplication::Run returned");
     } catch (winrt::hresult_error const& error) {
