@@ -21,7 +21,8 @@ $uwp = Join-Path $MesaDirectory "uwp"
 New-Item -ItemType Directory -Force -Path $uwp | Out-Null
 Copy-Item (Join-Path $vendor "mesa_sysstubs.c") (Join-Path $uwp "mesa_sysstubs.c") -Force
 Copy-Item (Join-Path $vendor "mesa_uwp_compat.h") (Join-Path $uwp "mesa_uwp_compat.h") -Force
-git -C $MesaDirectory apply --reverse --check $patch 2>$null
+# Capturar stderr como salida normal: PowerShell puede tratar el stderr de Git como excepcion con ErrorActionPreference=Stop.
+git -C $MesaDirectory apply --reverse --check $patch 2>&1 | Out-Null
 if ($LASTEXITCODE -eq 0) {
   Write-Host "El parche Dozen UWP ya estaba aplicado; no se repite."
 } else {
