@@ -39,9 +39,10 @@ void OpenDiagnosticLog() noexcept {
         const auto folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
         std::wstring path = folder.Path().c_str();
         path += L"\\TriAevumXboxUwpHost.log";
-        g_diagnosticFile = CreateFileW(
+        // UWP apps must use the app-compatible file API rather than CreateFileW.
+        g_diagnosticFile = CreateFile2FromAppW(
             path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE,
-            nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+            OPEN_ALWAYS, nullptr);
         if (g_diagnosticFile == INVALID_HANDLE_VALUE) {
             char message[128]{};
             std::snprintf(message, sizeof(message),
