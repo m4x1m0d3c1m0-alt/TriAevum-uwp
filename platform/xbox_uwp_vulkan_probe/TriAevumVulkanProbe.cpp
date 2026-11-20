@@ -112,4 +112,4 @@ struct ProbeView:winrt::implements<ProbeView,core::IFrameworkView>{
  void Uninitialize(){}
 };
 struct ProbeSource:winrt::implements<ProbeSource,core::IFrameworkViewSource>{core::IFrameworkView CreateView(){return winrt::make<ProbeView>();}};
-int __stdcall wWinMain(HINSTANCE,HINSTANCE,PWSTR,int){try{winrt::init_apartment(winrt::apartment_type::single_threaded);core::CoreApplication::Run(winrt::make<ProbeSource>());}catch(...){Log("CoreApplication::Run failed");}return 0;}
+int __stdcall wWinMain(HINSTANCE,HINSTANCE,PWSTR,int){try{OutputDebugStringA("TriAevum Vulkan Probe: entering CoreApplication::Run\r\n");core::CoreApplication::Run(winrt::make<ProbeSource>());}catch(...){Log("CoreApplication::Run failed");}return 0;}
