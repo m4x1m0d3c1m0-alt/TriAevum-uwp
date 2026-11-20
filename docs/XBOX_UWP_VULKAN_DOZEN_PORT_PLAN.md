@@ -89,3 +89,18 @@ Se ha incorporado una primera infraestructura basada en el material público de 
 La aplicación registra el resultado en `LocalState\TriAevumVulkanProbe.log`. Aún no se ha compilado en el PC del usuario ni ejecutado en Series S. El siguiente paso es validar el build de Mesa, compilar el APPX, firmarlo e instalarlo. Solo después de confirmar `vkCreateSwapchainKHR(CoreWindow)` se añadirá clear/present y se empezará el inventario de capacidades que necesita TriAevum.
 
 La primera versión del probe evita depender de `vulkan-1.dll`: carga `vulkan_dzn.dll` y usa su entrada ICD `vk_icdGetInstanceProcAddr`, siguiendo el patrón de `emelin2004/rpcs3-xbox/uwp/vkshim`. Esto debe comprobarse con el build UWP real de Mesa; no se da por validado hasta que la consola escriba el resultado en LocalState.
+
+
+## Validación en Xbox Series S completada (2026-11-20)
+
+La puerta 1 está superada en hardware real. El usuario ejecutó el probe UWP 0.1.0.3 y confirmó que aparece el fotograma azul. El log de 0.1.0.2 ya había registrado dispositivo, extensiones, cola gráfica y swapchain; 0.1.0.3 añadió adquisición de imagen, command pool/buffer, clear color, submit, present y espera de cola.
+
+Resultado validado: Dozen traduce comandos Vulkan a D3D12 y presenta al CoreWindow en Xbox Series S. La pantalla azul es el clear color del swapchain, no una escena del juego.
+
+La siguiente etapa ya no es ampliar el probe. Es integrar el loader/dispatch y el contrato de ventana CoreWindow en el backend Vulkan real. El análisis de los puntos de acoplamiento está en [XBOX_UWP_VULKAN_RUNTIME_INTEGRATION.md](XBOX_UWP_VULKAN_RUNTIME_INTEGRATION.md). En particular:
+- el backend actual depende de SDL2 y usa `SDL_GetWindowWMInfo` para crear la superficie Win32;
+- el runtime y Dear ImGui enlazan `Vulkan::Vulkan`, mientras el probe carga Dozen directamente mediante `vk_icdGetInstanceProcAddr`;
+- NRI envuelve el dispositivo existente con `nriCreateDeviceFromVKDevice`, pero su dispatch y compilación UWP aún deben validarse;
+- el runtime localiza actualmente `shaderc_shared.dll` del Vulkan SDK de escritorio, que no se ha probado en AppContainer.
+
+No se ha modificado todavía el renderer de escritorio ni se ha intentado compilar el runtime para UWP.
