@@ -132,7 +132,7 @@ private:
             &swapDesc,
             nullptr,
             swapChain1.GetAddressOf()));
-        winrt::check_hresult(swapChain1.As(m_swapChain.GetAddressOf()));
+        winrt::check_hresult(swapChain1.As(&m_swapChain));
 
         auto rtv = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
         for (UINT i = 0; i < kFrameCount; ++i) {
