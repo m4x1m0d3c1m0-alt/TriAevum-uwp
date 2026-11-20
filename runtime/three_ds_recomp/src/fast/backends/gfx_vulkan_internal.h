@@ -67,7 +67,8 @@ constexpr size_t kOot3dCachedVertexBufferLimit = 1024;
 constexpr uint32_t kSpirvMagic = 0x07230203U;
 constexpr uint64_t kMaximumPipelineCacheBytes = 64ULL * 1024ULL * 1024ULL;
 
-void* ResolveNriNativeWindow(GfxWindowBackendSDL2* backend) {
+void* ResolveNriNativeWindow(GfxWindowBackend* windowBackend) {
+    auto* backend = dynamic_cast<GfxWindowBackendSDL2*>(windowBackend);
 #ifdef _WIN32
     if (backend == nullptr || backend->GetNativeWindow() == nullptr)
         return nullptr;
