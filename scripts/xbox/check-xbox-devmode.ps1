@@ -24,7 +24,7 @@ try {
 } catch { $tcpOk = $false } finally { $client.Close() }
 Write-Host ("Device Portal TCP 11443: {0}" -f $(if ($tcpOk) { 'ACCESIBLE' } else { 'NO ACCESIBLE' }))
 
-$vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\\Installer\\vswhere.exe'
+$vswhere = Join-Path $env:ProgramFiles 'Microsoft Visual Studio\Installer\vswhere.exe'
 if (Test-Path $vswhere) {
     $vsPath = & $vswhere -latest -products '*' -property installationPath
     if ($vsPath) {
@@ -34,10 +34,14 @@ if (Test-Path $vswhere) {
     } else { Write-Host 'Visual Studio:           no detectado' }
 } else { Write-Host 'Visual Studio Installer: vswhere no encontrado' }
 
-$sdkRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\\10\\Include'
+$sdkRoot = Join-Path $env:ProgramFiles(x86) 'Windows Kits\10\Include'
 if (Test-Path $sdkRoot) {
-    # Windows SDK folders use the four-part form 10.0.<build>.<revision>.
-    $sdks = Get-ChildItem $sdkRoot -Directory | Where-Object { $_.Name -match '^10\\.0\\.\\d+\\.\\d+$' } | Sort-Object Name -Descending
+    $sdks = Get-ChildItem $sdkRoot -Directory | Where-Object {
+        try {
+            $version = [version]$_.Name
+            ($version.Major -eq 10 -and $version.Minor -eq 0)
+        } catch { $false }
+    } | Sort-Object { [version]$_.Name } -Descending
     if ($sdks) {
         Write-Host 'Windows SDK(s):'
         $sdks | ForEach-Object { Write-Host "  $($_.Name)" }
