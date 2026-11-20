@@ -111,3 +111,51 @@ La inspección de `gfx_sdl.h`, `gfx_vulkan.h`, `gfx_vulkan_device.cpp` y `gfx_vu
 4. La primera fase ejecutable debe excluir providers NGX/DLSS, FSR, NIS, FidelityFX y otros módulos de escritorio no esenciales. NRI puede quedar apagado en el primer hito; después se habilitará con su propio contrato de loader/feature.
 
 La implementación no debe introducir una dependencia nueva de Volk ni copiar código de terceros hasta verificar cómo inicializa su dispatch y cómo NRI/ImGui consumen los símbolos en este árbol. La siguiente tarea de código es inventariar las dependencias de loader del target Vulkan (runtime, ImGui, NRI y herramientas de shader) y crear una abstracción de plataforma pequeña para el contexto de ventana. Solo después se cambia el enlace CMake del target UWP. Así se evita un loader a medias que compile pero falle al cargar el APPX.
+
+
+## Segunda inspección: loader compartido, ImGui y NRI (20-11-2026)
+
+Se inspeccionaron los puntos de entrada exactos del backend y el wrapper NRI v180 fijado por el proyecto.
+
+### Backend y superficie
+
+- `gfx_vulkan_device.cpp::CreateInstance()` tiene una rama `_WIN32` que solicita `VK_KHR_surface` y `VK_KHR_win32_surface`. Es la lista correcta de extensiones que Dozen expone en la Xbox, pero no constituye por sí sola un host UWP.
+- `CreateSurface()` usa `SDL_GetWindowWMInfo` y `windowInfo.info.win.window`. La ruta UWP debe sustituir solo la obtención del objeto nativo y llamar a la superficie Dozen con el CoreWindow IUnknown, siguiendo el mecanismo probado por `winrt::get_unknown(window)` en el probe.
+- `gfx_vulkan_lifecycle.cpp::Init()` rechaza explícitamente cualquier ventana que no sea `GfxWindowBackendSDL2` con `UsesVulkan()`; el constructor y el miembro `mWindowBackend` también están tipados como SDL2. La solución completa necesita un contrato de ventana común o un backend UWP propio, no un cast de ventana.
+- `gfx_vulkan_internal.h` incluye SDL2, SDL2 Vulkan y SDL2 SysWM de forma global para todas las unidades del backend. El trabajo de plataforma debe aislar esas inclusiones detrás de la implementación de escritorio.
+- La selección de colas consulta `SDL_GetCurrentVideoDriver()`; el capability `PresentTearing` y la ruta de caché también consultan el backend SDL. Esos usos deben pasar por el contrato común de ventana/plataforma.
+- `VulkanShaderCacheDirectory()` recurre a `SDL_GetPrefPath()` si no hay `TRIAEVUM_RENDERER_CACHE_DIR`. En UWP la ruta debe proceder de `ApplicationData::Current().LocalFolder()` o de un directorio explícito del host.
+
+### Loader: opción recomendada para probar primero
+
+La búsqueda del código de Volk confirma que ofrece `volkInitializeCustom(PFN_vkGetInstanceProcAddr)`, seguido de carga de dispatch de instancia y dispositivo. ImGui Vulkan incluye soporte condicional `IMGUI_IMPL_VULKAN_USE_VOLK`. Esto permite una ruta técnica concreta:
+
+1. Compilar Volk como código estático del target UWP, sin `volkInitialize()` ni carga de `vulkan-1.dll`.
+2. En UWP, cargar `vulkan_dzn.dll` con `LoadPackagedLibrary`, obtener `vk_icdGetInstanceProcAddr` y pasarlo a `volkInitializeCustom`.
+3. Tras `vkCreateInstance`, llamar a `volkLoadInstance`; tras `vkCreateDevice`, llamar a `volkLoadDevice`. El backend actual usa símbolos globales `vk*`, por lo que este paso evita tener que escribir manualmente cientos de wrappers.
+4. Compilar `imgui_impl_vulkan.cpp` con `IMGUI_IMPL_VULKAN_USE_VOLK` y garantizar que utiliza la misma instancia de Volk/dispatch global que el renderer.
+5. Eliminar `Vulkan::Vulkan` del enlace UWP; mantener el enlace convencional para escritorio.
+
+Esto es una propuesta de implementación, no un cambio ya probado. Antes de adoptarla hay que fijar la versión de Volk y comprobar que el código de la rama y el Vulkan-Headers empleado son compatibles.
+
+### Hallazgo crítico de NRI
+
+El wrapper NRI v180 (`NRIWrapperVK.h`) no recibe un `PFN_vkGetInstanceProcAddr` en `DeviceCreationVKDesc`. Sí recibe `libraryPath`, además de la instancia, dispositivo físico y dispositivo existentes.
+
+En el código fijado de NRI (`Source/VK/DeviceVK.hpp`), `DeviceVK::Create()` hace lo siguiente incluso cuando envuelve un dispositivo existente:
+- Carga una biblioteca con `LoadSharedLibrary(libraryPath ? libraryPath : NRI_VULKAN_LOADER_NAME)`.
+- Resuelve el dispatch Vulkan de pre-instancia y de instancia desde esa biblioteca.
+- En modo wrapper reutiliza la instancia y dispositivo entregados, pero conserva su propia tabla de funciones.
+
+Por ello, pasar simplemente el dispositivo creado por Volk no basta. La compilación UWP inicial debe desactivar NRI (`THREE_DS_RECOMP_ENABLE_NRI=OFF`) hasta que el wrapper pueda cargar Dozen mediante una ruta AppContainer válida. Después se parcheará el loader de NRI para usar `LoadPackagedLibrary` bajo el target UWP y se le suministrará `vulkan_dzn.dll` como `libraryPath`; no se debe habilitar NRI antes de validar esa ruta.
+
+### Orden de implementación resultante
+
+A. Crear un target UWP mínimo que compile Volk y el backend Vulkan sin `Vulkan::Vulkan`, ImGui Vulkan convencional ni NRI.  
+B. Añadir el host CoreWindow y el contrato de ventana UWP; conservar SDL2 sin cambios en escritorio.  
+C. Crear instancia/superficie/dispositivo/swapchain a través del backend TriAevum y mostrar un clear frame.  
+D. Activar ImGui mediante Volk.  
+E. Adaptar el loader NRI a UWP y volver a habilitar NRI.  
+F. Reincorporar shaders/runtime de compilación y módulos opcionales según su compatibilidad real.
+
+No se considera terminado ningún hito por compilar únicamente: cada fase necesita prueba de arranque en la Xbox y un registro de resultado.
