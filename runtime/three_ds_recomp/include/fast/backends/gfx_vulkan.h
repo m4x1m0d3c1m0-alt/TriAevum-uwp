@@ -126,6 +126,7 @@ namespace Oot3d::Renderer { struct AzaharPbrMaterial; }
 
 namespace Fast {
 
+class GfxWindowBackend;
 class GfxWindowBackendSDL2;
 
 // Native PICA texture geometry, shared between the backend's texture creation
@@ -164,7 +165,7 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
                                     public Extension::TitleRenderBackend,
                                     public Renderer3ds::PicaProgramPreparationBackend {
   public:
-    explicit GfxRenderingAPIVulkan(GfxWindowBackendSDL2* windowBackend);
+    explicit GfxRenderingAPIVulkan(GfxWindowBackend* windowBackend);
     ~GfxRenderingAPIVulkan() override;
     void PrepareNativePicaPrograms(std::span<const Renderer3ds::PicaVertexArtifact> vertices) override;
     [[nodiscard]] bool UsesAlwaysAvailablePrograms() const override;
@@ -1323,7 +1324,7 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
     void DrawTrianglesFromBuffer(VkBuffer vertexBuffer, VkDeviceSize vertexOffset,
                                  size_t bufVboLen, size_t bufVboNumTris);
 
-    GfxWindowBackendSDL2* mWindowBackend = nullptr;
+    GfxWindowBackend* mWindowBackend = nullptr;
     VkInstance mInstance = VK_NULL_HANDLE;
     VkSurfaceKHR mSurface = VK_NULL_HANDLE;
     VkPhysicalDevice mPhysicalDevice = VK_NULL_HANDLE;
