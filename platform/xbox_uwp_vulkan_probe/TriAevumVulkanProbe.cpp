@@ -1,4 +1,6 @@
+#ifndef VK_USE_PLATFORM_WIN32_KHR
 #define VK_USE_PLATFORM_WIN32_KHR
+#endif
 #include <windows.h>
 #include <winrt/base.h>
 #include <winrt/Windows.Foundation.h>
@@ -85,7 +87,8 @@ static bool Probe(){
  VkApplicationInfo ai{VK_STRUCTURE_TYPE_APPLICATION_INFO};ai.pApplicationName="TriAevum Vulkan Probe";ai.apiVersion=VK_API_VERSION_1_2;
  VkInstanceCreateInfo ci{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};ci.pApplicationInfo=&ai;ci.enabledExtensionCount=2;ci.ppEnabledExtensionNames=enabled;
  r=pCreateInstance(&ci,nullptr,&instance);Result("vkCreateInstance",r);if(r!=VK_SUCCESS)return false;
- INST(pDestroyInstance,vkDestroyInstance);INST(pEnumPhysical,vkEnumeratePhysicalDevices);INST(pGetProps,vkGetPhysicalDeviceProperties);\n INST(pGetFeatures2,vkGetPhysicalDeviceFeatures2);INST(pGetProperties2,vkGetPhysicalDeviceProperties2);
+ INST(pDestroyInstance,vkDestroyInstance);INST(pEnumPhysical,vkEnumeratePhysicalDevices);INST(pGetProps,vkGetPhysicalDeviceProperties);
+ INST(pGetFeatures2,vkGetPhysicalDeviceFeatures2);INST(pGetProperties2,vkGetPhysicalDeviceProperties2);
  INST(pEnumDevExt,vkEnumerateDeviceExtensionProperties);INST(pGetQueues,vkGetPhysicalDeviceQueueFamilyProperties);
  INST(pCreateSurface,vkCreateWin32SurfaceKHR);INST(pDestroySurface,vkDestroySurfaceKHR);
  INST(pSurfaceSupport,vkGetPhysicalDeviceSurfaceSupportKHR);INST(pSurfaceCaps,vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
