@@ -200,3 +200,14 @@ El renderer Vulkan conservará toda su lógica de GPU y seguirá usando el mismo
 5. Compilar desktop y el host UWP en cada cambio antes de instalar el APPX.
 
 No se ha modificado todavía el código de runtime en esta auditoría. Este documento registra el seam concreto y el orden de refactorización para que el primer cambio de código sea pequeño, reversible y verificable.
+## Primer cambio de refactorización del runtime (20-11-2026)
+
+Se ha aplicado un primer cambio de bajo riesgo en la rama xbox-series-s-uwp:
+- La declaración y el miembro de GfxRenderingAPIVulkan ahora reciben/almacenan GfxWindowBackend*, no GfxWindowBackendSDL2*.
+- El constructor acepta el contrato abstracto de ventana. Los métodos comunes (dimensiones, vsync, ciclo de vida) pueden proceder de cualquier implementación de GfxWindowBackend.
+- Las operaciones que todavía son específicamente SDL2 hacen dynamic_cast explícito a GfxWindowBackendSDL2 y fallan con un mensaje claro si se invocan sin ese proveedor: comprobación inicial, obtención de ventana SDL, extensiones SDL y superficie SDL/Win32.
+- ResolveNriNativeWindow también acepta el contrato base y solo resuelve HWND cuando el proveedor concreto es SDL2.
+
+Este cambio no añade aún CoreWindow ni el loader UWP. Es el primer seam real para desacoplar el renderer de la clase SDL sin alterar deliberadamente el comportamiento desktop. No se ha ejecutado una compilación en este entorno; requiere validación local antes de seguir con el proveedor UWP.
+
+Validación requerida: compilar el target desktop Vulkan existente y comprobar que los puntos de entrada de SDL continúan resolviendo GfxWindowBackendSDL2. Si compila, el siguiente cambio es extraer el contrato de superficie Vulkan (extensiones + callback/objeto nativo) y añadir el proveedor CoreWindow.
