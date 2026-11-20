@@ -1,6 +1,5 @@
 param(
   [string]$MesaDirectory = $(if ($env:SMASH4_MESA) { $env:SMASH4_MESA } else { "C:\mesa-dozen" }),
-  [switch]$Reapply
 )
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
@@ -20,14 +19,15 @@ $uwp = Join-Path $MesaDirectory "uwp"
 New-Item -ItemType Directory -Force -Path $uwp | Out-Null
 Copy-Item (Join-Path $vendor "mesa_sysstubs.c") (Join-Path $uwp "mesa_sysstubs.c") -Force
 Copy-Item (Join-Path $vendor "mesa_uwp_compat.h") (Join-Path $uwp "mesa_uwp_compat.h") -Force
-if ($Reapply) {
-  git -C $MesaDirectory apply --reverse --check $patch 2>$null
-  if ($LASTEXITCODE -eq 0) { git -C $MesaDirectory apply --reverse $patch }
+git -C $MesaDirectory apply --reverse --check $patch 2>$null
+if ($LASTEXITCODE -eq 0) {
+  Write-Host "El parche Dozen UWP ya estaba aplicado; no se repite."
+} else {
+  git -C $MesaDirectory apply --check $patch
+  if ($LASTEXITCODE -ne 0) { throw "El parche no aplica limpiamente a esta revisión de Mesa. No se ha forzado." }
+  git -C $MesaDirectory apply $patch
+  if ($LASTEXITCODE -ne 0) { throw "No se pudo aplicar el parche Mesa Dozen UWP." }
 }
-git -C $MesaDirectory apply --check $patch
-if ($LASTEXITCODE -ne 0) { throw "El parche no aplica limpiamente a esta revisión de Mesa. No se ha forzado." }
-git -C $MesaDirectory apply $patch
-if ($LASTEXITCODE -ne 0) { throw "No se pudo aplicar el parche Mesa Dozen UWP." }
 Write-Host "Mesa preparada en: $MesaDirectory"
 Write-Host "Revisión fijada: a44c011"
 Write-Host "Parche Dozen UWP aplicado."
