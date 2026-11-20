@@ -10,7 +10,17 @@
 #     importaciones que no se pueden llevar al paquete. Lo que vale es la tabla final.
 param([switch]$SoloNinja)
 $arbol     = if ($env:SMASH4_MESA)      { $env:SMASH4_MESA }      else { 'D:\mesa' }
-$toolchain = if ($env:SMASH4_TOOLCHAIN) { $env:SMASH4_TOOLCHAIN } else { 'D:\smash4\toolchain' }
+$venv = Join-Path $arbol 'uwp\venv-meson'
+$python = Get-Command python -ErrorAction SilentlyContinue
+if (-not $python) { throw 'No encuentro Python 3 en PATH.' }
+if (-not (Test-Path (Join-Path $venv 'Scripts\python.exe'))) {
+    New-Item -ItemType Directory -Force -Path (Split-Path $venv) | Out-Null
+    & $python.Source -m venv $venv
+    if ($LASTEXITCODE -ne 0) { throw 'No se pudo crear el entorno virtual Python de Mesa.' }
+}
+$venvPython = Join-Path $venv 'Scripts\python.exe'
+& $venvPython -m pip install --disable-pip-version-check --upgrade meson ninja mako packaging pyyaml jinja2 ply
+if ($LASTEXITCODE -ne 0) { throw 'No se pudieron instalar Meson/Ninja y las dependencias Python de Mesa.' }
 
 $ErrorActionPreference = 'Continue'
 
@@ -46,7 +56,7 @@ if ($umx64) {
 $limpio = ($env:PATH -split ';' | Where-Object { $_ -and $_ -notmatch 'retcomm' }) -join ';'
 # ⚠ El venv de meson vive con el ARBOL de Mesa, no junto a este guion: si no, basta con
 # copiar el guion a otro sitio para que «meson» deje de existir.
-$env:PATH = "$(Join-Path $arbol 'uwp\venv-meson\Scripts');$(Join-Path $toolchain 'Ninja');$limpio"
+$env:PATH = "$(Join-Path $arbol 'uwp\venv-meson\Scripts');$limpio"
 $env:CC = 'clang-cl'
 $env:CXX = 'clang-cl'
 
