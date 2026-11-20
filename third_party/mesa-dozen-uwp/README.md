@@ -9,7 +9,7 @@ Este directorio incorpora material técnico del proyecto [jajdp/smash4-xbox](htt
 
 ## Uso
 
-1. Clonar Mesa en una ruta corta y fijar la revisión indicada.
+1. Clonar Mesa en una ruta corta y fijar la rama estable `26.2` indicada.
 2. Copiar `mesa_sysstubs.c` y `mesa_uwp_compat.h` a `<mesa>\uwp\`.
 3. Aplicar el parche con `git apply --check` antes de aplicarlo.
 4. Ejecutar `scripts/xbox/build-mesa-dozen-uwp.ps1` desde PowerShell con las variables de entorno descritas en el script de origen.
