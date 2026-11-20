@@ -32,6 +32,8 @@ constexpr UINT kFrameCount = 2;
 HANDLE g_diagnosticFile = INVALID_HANDLE_VALUE;
 const char* g_diagnosticStage = "Startup";
 
+void LogDiagnostic(const char* message) noexcept;
+
 void OpenDiagnosticLog() noexcept {
     try {
         const auto folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
@@ -46,25 +48,25 @@ void OpenDiagnosticLog() noexcept {
                 "Could not open LocalState diagnostic log; Win32 error=%lu",
                 static_cast<unsigned long>(GetLastError()));
             OutputDebugStringA(message);
-            OutputDebugStringA("\\r\\n");
+            OutputDebugStringA("\r\n");
             return;
         }
         LogDiagnostic("===== TriAevum Xbox UWP host diagnostic session =====");
         LogDiagnostic("Log location: ApplicationData\\LocalFolder\\TriAevumXboxUwpHost.log");
     } catch (...) {
-        OutputDebugStringA("Could not initialize the app LocalState diagnostic log\\r\\n");
+        OutputDebugStringA("Could not initialize the app LocalState diagnostic log\r\n");
     }
 }
 
 void LogDiagnostic(const char* message) noexcept {
     if (!message) return;
     OutputDebugStringA(message);
-    OutputDebugStringA("\\r\\n");
+    OutputDebugStringA("\r\n");
     if (g_diagnosticFile != INVALID_HANDLE_VALUE) {
         DWORD written = 0;
         const DWORD length = static_cast<DWORD>(std::strlen(message));
         WriteFile(g_diagnosticFile, message, length, &written, nullptr);
-        static constexpr char newline[] = "\\r\\n";
+        static constexpr char newline[] = "\r\n";
         WriteFile(g_diagnosticFile, newline, 2, &written, nullptr);
         FlushFileBuffers(g_diagnosticFile);
     }
