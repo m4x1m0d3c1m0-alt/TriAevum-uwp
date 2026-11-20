@@ -15,7 +15,15 @@ $toolchain = if ($env:SMASH4_TOOLCHAIN) { $env:SMASH4_TOOLCHAIN } else { 'D:\sma
 $ErrorActionPreference = 'Continue'
 
 $sp = $PSScriptRoot
-$vcvarsall = 'C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat'
+$vswhere = Join-Path "$env:ProgramFiles(x86)" 'Microsoft Visual Studio\Installer\vswhere.exe'
+$vcvarsall = $null
+if (Test-Path $vswhere) {
+    $vsRoot = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+    if ($vsRoot) { $vcvarsall = Join-Path $vsRoot 'VC\Auxiliary\Build\vcvarsall.bat' }
+}
+if (-not $vcvarsall -or -not (Test-Path $vcvarsall)) {
+    throw 'No encuentro vcvarsall.bat de Visual Studio con C++ x64. Instala el componente MSVC.'
+}
 
 # «x64 store», no «x64»: es lo que hace que /MD enlace el CRT del contenedor
 # (VCRUNTIME140_APP.dll). Con el de escritorio el DLL se construye igual pero en la consola no
