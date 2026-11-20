@@ -39,6 +39,8 @@ static PFN_vkEnumerateInstanceExtensionProperties pEnumInstExt;
 static PFN_vkDestroyInstance pDestroyInstance;
 static PFN_vkEnumeratePhysicalDevices pEnumPhysical;
 static PFN_vkGetPhysicalDeviceProperties pGetProps;
+static PFN_vkGetPhysicalDeviceFeatures2 pGetFeatures2;
+static PFN_vkGetPhysicalDeviceProperties2 pGetProperties2;
 static PFN_vkEnumerateDeviceExtensionProperties pEnumDevExt;
 static PFN_vkGetPhysicalDeviceQueueFamilyProperties pGetQueues;
 static PFN_vkCreateWin32SurfaceKHR pCreateSurface;
@@ -83,7 +85,7 @@ static bool Probe(){
  VkApplicationInfo ai{VK_STRUCTURE_TYPE_APPLICATION_INFO};ai.pApplicationName="TriAevum Vulkan Probe";ai.apiVersion=VK_API_VERSION_1_2;
  VkInstanceCreateInfo ci{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};ci.pApplicationInfo=&ai;ci.enabledExtensionCount=2;ci.ppEnabledExtensionNames=enabled;
  r=pCreateInstance(&ci,nullptr,&instance);Result("vkCreateInstance",r);if(r!=VK_SUCCESS)return false;
- INST(pDestroyInstance,vkDestroyInstance);INST(pEnumPhysical,vkEnumeratePhysicalDevices);INST(pGetProps,vkGetPhysicalDeviceProperties);
+ INST(pDestroyInstance,vkDestroyInstance);INST(pEnumPhysical,vkEnumeratePhysicalDevices);INST(pGetProps,vkGetPhysicalDeviceProperties);\n INST(pGetFeatures2,vkGetPhysicalDeviceFeatures2);INST(pGetProperties2,vkGetPhysicalDeviceProperties2);
  INST(pEnumDevExt,vkEnumerateDeviceExtensionProperties);INST(pGetQueues,vkGetPhysicalDeviceQueueFamilyProperties);
  INST(pCreateSurface,vkCreateWin32SurfaceKHR);INST(pDestroySurface,vkDestroySurfaceKHR);
  INST(pSurfaceSupport,vkGetPhysicalDeviceSurfaceSupportKHR);INST(pSurfaceCaps,vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
@@ -91,7 +93,21 @@ static bool Probe(){
  uint32_t pc=0;r=pEnumPhysical(instance,&pc,nullptr);Result("Enumerate physical devices",r);if(r!=VK_SUCCESS||!pc)return false;
  std::vector<VkPhysicalDevice> phys(pc);r=pEnumPhysical(instance,&pc,phys.data());if(r!=VK_SUCCESS)return false;
  VkPhysicalDevice gpu=phys[0];VkPhysicalDeviceProperties props{};pGetProps(gpu,&props);Log(props.deviceName);
- char inf[128];sprintf_s(inf,"Vulkan %u.%u.%u, vendor %04x device %04x",VK_VERSION_MAJOR(props.apiVersion),VK_VERSION_MINOR(props.apiVersion),VK_VERSION_PATCH(props.apiVersion),props.vendorID,props.deviceID);Log(inf);
+ char inf[256];sprintf_s(inf,"Vulkan %u.%u.%u, vendor %04x device %04x, driverVersion %u",VK_VERSION_MAJOR(props.apiVersion),VK_VERSION_MINOR(props.apiVersion),VK_VERSION_PATCH(props.apiVersion),props.vendorID,props.deviceID,props.driverVersion);Log(inf);
+ // Capture the actual feature/limit profile of the Xbox adapter. This is the
+ // compatibility baseline for TriAevum; do not infer support from API version.
+ VkPhysicalDeviceVulkan12Features f12{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
+ VkPhysicalDeviceVulkan11Features f11{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES};
+ f11.pNext=&f12;VkPhysicalDeviceFeatures2 f2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};f2.pNext=&f11;
+ pGetFeatures2(gpu,&f2);const auto& cf=f2.features;
+ #define FEATURE(name) do{sprintf_s(inf,"FEATURE " #name "=%u",(unsigned)cf.name);Log(inf);}while(0)
+ FEATURE(robustBufferAccess);FEATURE(fullDrawIndexUint32);FEATURE(imageCubeArray);FEATURE(independentBlend);FEATURE(geometryShader);FEATURE(tessellationShader);FEATURE(sampleRateShading);FEATURE(dualSrcBlend);FEATURE(logicOp);FEATURE(multiDrawIndirect);FEATURE(drawIndirectFirstInstance);FEATURE(depthClamp);FEATURE(depthBiasClamp);FEATURE(fillModeNonSolid);FEATURE(depthBounds);FEATURE(wideLines);FEATURE(largePoints);FEATURE(alphaToOne);FEATURE(multiViewport);FEATURE(samplerAnisotropy);FEATURE(textureCompressionBC);FEATURE(occlusionQueryPrecise);FEATURE(pipelineStatisticsQuery);FEATURE(vertexPipelineStoresAndAtomics);FEATURE(fragmentStoresAndAtomics);FEATURE(shaderTessellationAndGeometryPointSize);FEATURE(shaderImageGatherExtended);FEATURE(shaderStorageImageExtendedFormats);FEATURE(shaderStorageImageReadWithoutFormat);FEATURE(shaderStorageImageWriteWithoutFormat);FEATURE(shaderUniformBufferArrayDynamicIndexing);FEATURE(shaderSampledImageArrayDynamicIndexing);FEATURE(shaderStorageBufferArrayDynamicIndexing);FEATURE(shaderStorageImageArrayDynamicIndexing);FEATURE(shaderClipDistance);FEATURE(shaderCullDistance);FEATURE(shaderFloat64);FEATURE(shaderInt64);FEATURE(shaderInt16);FEATURE(shaderResourceResidency);FEATURE(shaderResourceMinLod);FEATURE(sparseBinding);FEATURE(sparseResidencyBuffer);FEATURE(sparseResidencyImage2D);
+ #undef FEATURE
+ #define FEATURE12(name) do{sprintf_s(inf,"FEATURE12 " #name "=%u",(unsigned)f12.name);Log(inf);}while(0)
+ FEATURE12(samplerMirrorClampToEdge);FEATURE12(drawIndirectCount);FEATURE12(storageBuffer8BitAccess);FEATURE12(uniformAndStorageBuffer8BitAccess);FEATURE12(shaderBufferInt64Atomics);FEATURE12(shaderSharedInt64Atomics);FEATURE12(shaderFloat16);FEATURE12(shaderInt8);FEATURE12(descriptorIndexing);FEATURE12(shaderInputAttachmentArrayDynamicIndexing);FEATURE12(shaderUniformTexelBufferArrayDynamicIndexing);FEATURE12(shaderStorageTexelBufferArrayDynamicIndexing);FEATURE12(shaderUniformBufferArrayNonUniformIndexing);FEATURE12(shaderSampledImageArrayNonUniformIndexing);FEATURE12(shaderStorageBufferArrayNonUniformIndexing);FEATURE12(shaderStorageImageArrayNonUniformIndexing);FEATURE12(shaderInputAttachmentArrayNonUniformIndexing);FEATURE12(shaderUniformTexelBufferArrayNonUniformIndexing);FEATURE12(shaderStorageTexelBufferArrayNonUniformIndexing);FEATURE12(descriptorBindingPartiallyBound);FEATURE12(descriptorBindingVariableDescriptorCount);FEATURE12(runtimeDescriptorArray);FEATURE12(samplerFilterMinmax);FEATURE12(scalarBlockLayout);FEATURE12(imagelessFramebuffer);FEATURE12(uniformBufferStandardLayout);FEATURE12(shaderSubgroupExtendedTypes);FEATURE12(separateDepthStencilLayouts);FEATURE12(hostQueryReset);FEATURE12(timelineSemaphore);FEATURE12(bufferDeviceAddress);FEATURE12(bufferDeviceAddressCaptureReplay);FEATURE12(bufferDeviceAddressMultiDevice);FEATURE12(vulkanMemoryModel);FEATURE12(vulkanMemoryModelDeviceScope);FEATURE12(vulkanMemoryModelAvailabilityVisibilityChains);FEATURE12(shaderOutputViewportIndex);FEATURE12(shaderOutputLayer);FEATURE12(subgroupBroadcastDynamicId);
+ #undef FEATURE12
+ sprintf_s(inf,"LIMITS pushConstants=%u maxStorageBufferRange=%u maxUniformBufferRange=%u maxBoundDescriptorSets=%u maxPerStageSampledImages=%u maxPerStageStorageBuffers=%u maxPerStageDescriptorSamplers=%u maxColorAttachments=%u maxImageDimension2D=%u maxFramebufferWidth=%u maxFramebufferHeight=%u",props.limits.maxPushConstantsSize,props.limits.maxStorageBufferRange,props.limits.maxUniformBufferRange,props.limits.maxBoundDescriptorSets,props.limits.maxPerStageDescriptorSampledImages,props.limits.maxPerStageDescriptorStorageBuffers,props.limits.maxPerStageDescriptorSamplers,props.limits.maxColorAttachments,props.limits.maxImageDimension2D,props.limits.maxFramebufferWidth,props.limits.maxFramebufferHeight);Log(inf);
+ sprintf_s(inf,"ALIGNMENTS minUniformBufferOffsetAlignment=%llu minStorageBufferOffsetAlignment=%llu minTexelBufferOffsetAlignment=%llu minMemoryMapAlignment=%llu",(unsigned long long)props.limits.minUniformBufferOffsetAlignment,(unsigned long long)props.limits.minStorageBufferOffsetAlignment,(unsigned long long)props.limits.minTexelBufferOffsetAlignment,(unsigned long long)props.limits.minMemoryMapAlignment);Log(inf);
  VkWin32SurfaceCreateInfoKHR sci{VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR};sci.hinstance=GetModuleHandleW(nullptr);
  // The Mesa UWP patch interprets hwnd as the CoreWindow IUnknown.
  sci.hwnd=reinterpret_cast<HWND>(winrt::get_unknown(window));
@@ -114,9 +130,11 @@ static bool Probe(){
  DEV(pCmdClearColorImage,vkCmdClearColorImage);DEV(pCreateSemaphore,vkCreateSemaphore);
  DEV(pDestroySemaphore,vkDestroySemaphore);
  VkSurfaceCapabilitiesKHR caps{};r=pSurfaceCaps(gpu,surface,&caps);Result("Surface capabilities",r);if(r!=VK_SUCCESS)return false;
+ sprintf_s(inf,"SURFACE minImages=%u maxImages=%u currentExtent=%ux%u minExtent=%ux%u maxExtent=%ux%u usage=0x%08X transforms=0x%08X compositeAlpha=0x%08X",caps.minImageCount,caps.maxImageCount,caps.currentExtent.width,caps.currentExtent.height,caps.minImageExtent.width,caps.minImageExtent.height,caps.maxImageExtent.width,caps.maxImageExtent.height,caps.supportedUsageFlags,caps.supportedTransforms,caps.supportedCompositeAlpha);Log(inf);
  if(!(caps.supportedUsageFlags&VK_IMAGE_USAGE_TRANSFER_DST_BIT)){Log("Surface does not support VK_IMAGE_USAGE_TRANSFER_DST_BIT; cannot run clear/present test");return false;}
  uint32_t fn=0;r=pSurfaceFormats(gpu,surface,&fn,nullptr);Result("Surface formats count",r);if(r!=VK_SUCCESS||!fn)return false;
  std::vector<VkSurfaceFormatKHR> formats(fn);r=pSurfaceFormats(gpu,surface,&fn,formats.data());if(r!=VK_SUCCESS)return false;
+ for(uint32_t i=0;i<fn;i++){sprintf_s(inf,"SURFACE_FORMAT[%u] format=%d colorSpace=%d",i,(int)formats[i].format,(int)formats[i].colorSpace);Log(inf);}
  VkExtent2D extent=caps.currentExtent;if(extent.width==UINT32_MAX){extent.width=uwp_get_width();extent.height=uwp_get_height();}
  uint32_t count=(std::max)(2u,caps.minImageCount);if(caps.maxImageCount&&count>caps.maxImageCount)count=caps.maxImageCount;
  VkSwapchainCreateInfoKHR si{VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};si.surface=surface;si.minImageCount=count;si.imageFormat=formats[0].format;si.imageColorSpace=formats[0].colorSpace;si.imageExtent=extent;si.imageArrayLayers=1;si.imageUsage=VK_IMAGE_USAGE_TRANSFER_DST_BIT;si.imageSharingMode=VK_SHARING_MODE_EXCLUSIVE;si.preTransform=caps.currentTransform;si.compositeAlpha=VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;si.presentMode=VK_PRESENT_MODE_FIFO_KHR;si.clipped=VK_TRUE;
