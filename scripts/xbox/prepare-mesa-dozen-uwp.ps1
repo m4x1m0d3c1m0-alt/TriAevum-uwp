@@ -11,10 +11,12 @@ if (-not (Test-Path (Join-Path $MesaDirectory ".git"))) {
   git clone https://gitlab.freedesktop.org/mesa/mesa.git $MesaDirectory
   if ($LASTEXITCODE -ne 0) { throw "No se pudo clonar Mesa." }
 }
-git -C $MesaDirectory fetch origin a44c011
-if ($LASTEXITCODE -ne 0) { throw "No se pudo obtener la revisión Mesa a44c011." }
-git -C $MesaDirectory checkout --detach a44c011
-if ($LASTEXITCODE -ne 0) { throw "No se pudo fijar Mesa en a44c011." }
+# El parche de Smash4-Xbox declara compatibilidad con Mesa 26.2.x. No se debe
+# pasar un SHA abreviado como ref remoto: GitLab no lo anuncia como rama/tag.
+git -C $MesaDirectory fetch origin refs/heads/26.2:refs/remotes/origin/26.2
+if ($LASTEXITCODE -ne 0) { throw "No se pudo obtener la rama estable Mesa 26.2." }
+git -C $MesaDirectory checkout --detach refs/remotes/origin/26.2
+if ($LASTEXITCODE -ne 0) { throw "No se pudo fijar Mesa en la rama estable 26.2." }
 $uwp = Join-Path $MesaDirectory "uwp"
 New-Item -ItemType Directory -Force -Path $uwp | Out-Null
 Copy-Item (Join-Path $vendor "mesa_sysstubs.c") (Join-Path $uwp "mesa_sysstubs.c") -Force
@@ -29,6 +31,6 @@ if ($LASTEXITCODE -eq 0) {
   if ($LASTEXITCODE -ne 0) { throw "No se pudo aplicar el parche Mesa Dozen UWP." }
 }
 Write-Host "Mesa preparada en: $MesaDirectory"
-Write-Host "Revisión fijada: a44c011"
+Write-Host ("Revisión fijada: Mesa 26.2 ({0})" -f (git -C $MesaDirectory rev-parse --short HEAD))
 Write-Host "Parche Dozen UWP aplicado."
 Write-Host "Siguiente: instalar Meson/Ninja y ejecutar scripts/xbox/build-mesa-dozen-uwp.ps1."
