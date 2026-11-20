@@ -133,3 +133,30 @@ swap-chain + clear/present test on the Series S itself.
 | Xbox UWP swap-chain and present on hardware | Not done |
 | TriAevum PICA D3D12 renderer | Not implemented |
 | Installable Xbox package / gameplay test | Not available |
+
+
+## Native UWP host source milestone (2026-11-20)
+
+The branch now contains an isolated native C++/WinRT host under
+`platform/xbox_uwp_d3d12/`:
+
+- `TriAevumXboxUwpHost.cpp` implements an `IFrameworkView`, creates a D3D12
+  device at feature level 11_0, a direct command queue, command allocators/list,
+  RTV heap, fence, and a two-buffer CoreWindow swap chain. It clears the current
+  back buffer to blue and presents it.
+- `TriAevumXboxUwpHost.vcxproj` targets x64, UWP, MSVC v145, and Windows SDK
+  10.0.26100.0.
+- `Package.appxmanifest` targets `Windows.Xbox`.
+- `GenerateAssets.ps1` generates placeholder package image assets before build.
+
+The swap-chain call passes the direct command queue, as required by the D3D12
+DXGI API contract. Microsoft documents that the first parameter is an
+`ID3D12CommandQueue` for D3D12, not an `ID3D12Device`:
+https://learn.microsoft.com/windows/win32/api/dxgi1_2/nf-dxgi1_2-idxgifactory2-createswapchainforcorewindow
+
+**Validation boundary:** these project and source files have been committed,
+but no compile has yet been run. Package signing is disabled pending setup of a
+development certificate. No installable package has been produced, and the
+host has not been deployed to or executed on the Xbox. Suspend/resume,
+window-size changes, controller input, and device-loss recovery remain future
+work. The Vulkan renderer is unchanged.
