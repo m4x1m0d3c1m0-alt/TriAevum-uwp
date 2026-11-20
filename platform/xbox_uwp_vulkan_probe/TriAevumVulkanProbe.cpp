@@ -103,8 +103,8 @@ struct ProbeView:winrt::implements<ProbeView,core::IFrameworkView>{
  void Initialize(core::CoreApplicationView const&){OpenLog();}
  void SetWindow(ui::CoreWindow const&w){window=w;window.Closed([](auto const&,auto const&){closed=true;});}
  void Load(winrt::hstring const&){}
- void Run(){try{window.Activate();Log("CoreWindow activated");Probe();}catch(winrt::hresult_error const&e){char b[128];sprintf_s(b,"WinRT exception 0x%08lx",(unsigned long)e.code().value);Log(b);}catch(...){Log("Unhandled probe exception");}
-  while(!closed)window.Dispatcher().ProcessEvents(ui::CoreProcessEventsOption::ProcessAllIfPresent);
+ void Run(){try{window.Activate();Log("CoreWindow activated");const bool ok=Probe();Log(ok?"PROBE RESULT: PASS":"PROBE RESULT: FAIL");}catch(winrt::hresult_error const&e){char b[128];sprintf_s(b,"WinRT exception 0x%08lx",(unsigned long)e.code().value);Log(b);}catch(...){Log("Unhandled probe exception");}
+  while(!closed)window.Dispatcher().ProcessEvents(ui::CoreProcessEventsOption::ProcessOneAndAllPending);
   if(swapchain&&pDestroySwapchain)pDestroySwapchain(device,swapchain,nullptr);if(device&&pDestroyDevice)pDestroyDevice(device,nullptr);
   if(surface&&pDestroySurface)pDestroySurface(instance,surface,nullptr);if(instance&&pDestroyInstance)pDestroyInstance(instance,nullptr);
   if(driver)FreeLibrary(driver);if(logFile!=INVALID_HANDLE_VALUE)CloseHandle(logFile);
