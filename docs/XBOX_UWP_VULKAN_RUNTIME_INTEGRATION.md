@@ -80,3 +80,34 @@ El log de la consola identifica `Microsoft Direct3D12 (SraKmd_arden)`, Vulkan `1
 - El backend existente ya hace opcionales NIS/FSR en función de features de descriptor update-after-bind y shaderInt16, respectivamente. El perfil medido apunta a mantener ambas rutas desactivadas en la primera integración UWP.
 
 El perfil es evidencia del ICD Dozen en esta consola, no una certificación de que todas las rutas Vulkan del renderer sean compatibles. Antes de activar NRI hay que confirmar synchronization2 y revisar su contrato de features; antes de integrar shaders hay que comprobar los formatos/operaciones que realmente usan.
+
+
+## Perfil confirmado por el probe 0.1.0.5 (Xbox Series S)
+
+El usuario ejecutó el probe 0.1.0.5 en la consola. El resultado vuelve a identificar el adaptador `Microsoft Direct3D12 (SraKmd_arden)`, Vulkan `1.2.354`, vendor `0x1414`, device `0xD000`. La consulta explícita de estructuras de características informa:
+
+- `synchronization2=1` y `dynamicRendering=1`. El backend actual ya consulta ambas características y, cuando están disponibles junto con sus extensiones, las activa al crear el dispositivo. En esta Xbox, ese camino debe quedar habilitado; no hace falta desactivarlo por UWP.
+- `timelineSemaphore=1`, `drawIndirectCount=1`, `scalarBlockLayout=1`, `uniformBufferStandardLayout=1`, `separateDepthStencilLayouts=1`, `samplerAnisotropy=1`, `textureCompressionBC=1`.
+- `descriptorIndexing=0`, `descriptorBindingSampledImageUpdateAfterBind=0`, `descriptorBindingStorageImageUpdateAfterBind=0`, `descriptorBindingPartiallyBound=0`, `descriptorBindingVariableDescriptorCount=0`, `runtimeDescriptorArray=0` y las variantes de indexación no uniforme están a cero.
+- `shaderInt16=0`, `shaderFloat16=0`, `shaderInt8=0`, `bufferDeviceAddress=0`, `tessellationShader=0`, `multiViewport=0`, `wideLines=0`.
+
+### Consecuencia directa para NRI
+
+El código de `gfx_vulkan_device.cpp` ya aplica gates conservadores antes de crear el dispositivo:
+
+- NIS solo se anuncia a NRI si están disponibles `shaderStorageImageWriteWithoutFormat`, `timelineSemaphore`, `descriptorBindingSampledImageUpdateAfterBind` y `descriptorBindingStorageImageUpdateAfterBind`. En la Series S, NIS queda deshabilitado por los dos requisitos update-after-bind.
+- FSR solo se anuncia a NRI si están disponibles `shaderInt16` y `timelineSemaphore`. En la Series S, FSR queda deshabilitado por `shaderInt16`.
+- `synchronization2` y `dynamicRendering` sí se detectan y habilitan en este perfil. Debemos conservar esa negociación existente.
+
+No se deben activar manualmente features que el driver informa como cero ni inferir compatibilidad a partir de que una extensión aparezca enumerada.
+
+## Decisión de implementación: no hacer un cast de ventana ni un loader parcial
+
+La inspección de `gfx_sdl.h`, `gfx_vulkan.h`, `gfx_vulkan_device.cpp` y `gfx_vulkan_lifecycle.cpp` concreta el alcance:
+
+1. `GfxRenderingAPIVulkan` recibe actualmente `GfxWindowBackendSDL2*`; `Init()` exige `UsesVulkan()` y `GetNativeWindow()` SDL. La selección de colas también consulta `SDL_GetCurrentVideoDriver()`, y la caché de shaders recurre a `SDL_GetPrefPath()`.
+2. La superficie Win32 actual obtiene un HWND mediante `SDL_GetWindowWMInfo`. La integración UWP debe entregar el CoreWindow como un objeto nativo WinRT explícito y aislar la llamada de superficie UWP en una rama de plataforma, sin simular un HWND SDL.
+3. El runtime tiene llamadas globales `vk*` distribuidas por varias unidades; ImGui Vulkan se compila dentro del target `ImGui` y enlaza `Vulkan::Vulkan`. NRI se crea sobre el dispositivo existente, pero también requiere que su wrapper VK reciba una dispatch compatible. Por tanto, resolver solo `vkCreateInstance` no es suficiente: el plan de loader debe cubrir global, instancia y dispositivo, además de ImGui y NRI.
+4. La primera fase ejecutable debe excluir providers NGX/DLSS, FSR, NIS, FidelityFX y otros módulos de escritorio no esenciales. NRI puede quedar apagado en el primer hito; después se habilitará con su propio contrato de loader/feature.
+
+La implementación no debe introducir una dependencia nueva de Volk ni copiar código de terceros hasta verificar cómo inicializa su dispatch y cómo NRI/ImGui consumen los símbolos en este árbol. La siguiente tarea de código es inventariar las dependencias de loader del target Vulkan (runtime, ImGui, NRI y herramientas de shader) y crear una abstracción de plataforma pequeña para el contexto de ventana. Solo después se cambia el enlace CMake del target UWP. Así se evita un loader a medias que compile pero falle al cargar el APPX.
