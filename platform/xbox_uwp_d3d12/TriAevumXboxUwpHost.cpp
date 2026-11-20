@@ -9,6 +9,7 @@
 #include <array>
 
 #include <winrt/base.h>
+#include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.ApplicationModel.Core.h>
 #include <winrt/Windows.Graphics.Display.h>
 #include <winrt/Windows.UI.Core.h>
@@ -29,7 +30,9 @@ struct D3D12CoreWindowView
 
     void SetWindow(ui::CoreWindow const& window) {
         m_window = window;
-        m_window.Closed({ this, &D3D12CoreWindowView::OnClosed });
+        m_window.Closed([this](ui::CoreWindow const&, ui::CoreWindowEventArgs const&) {
+            m_closed = true;
+        });
     }
 
     void Load(winrt::hstring const&) {}
