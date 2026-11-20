@@ -87,3 +87,5 @@ Se ha incorporado una primera infraestructura basada en el material público de 
 - `scripts/xbox/build-xbox-vulkan-probe.ps1`: empaquetado del probe con Dozen UWP y DXIL.dll proporcionados localmente.
 
 La aplicación registra el resultado en `LocalState\TriAevumVulkanProbe.log`. Aún no se ha compilado en el PC del usuario ni ejecutado en Series S. El siguiente paso es validar el build de Mesa, compilar el APPX, firmarlo e instalarlo. Solo después de confirmar `vkCreateSwapchainKHR(CoreWindow)` se añadirá clear/present y se empezará el inventario de capacidades que necesita TriAevum.
+
+La primera versión del probe evita depender de `vulkan-1.dll`: carga `vulkan_dzn.dll` y usa su entrada ICD `vk_icdGetInstanceProcAddr`, siguiendo el patrón de `emelin2004/rpcs3-xbox/uwp/vkshim`. Esto debe comprobarse con el build UWP real de Mesa; no se da por validado hasta que la consola escriba el resultado en LocalState.
