@@ -4,7 +4,7 @@ Este directorio incorpora material técnico del proyecto [jajdp/smash4-xbox](htt
 
 - Proyecto de origen: https://github.com/jajdp/smash4-xbox
 - Archivos de origen: `patches/mesa-dozen-xbox.patch`, `src/mesa_sysstubs.c`, `src/mesa_uwp_compat.h`, `tools/compilar-dozen-uwp.ps1`
-- Licencia de Mesa: MIT; el parche es una modificación de Mesa y conserva los avisos y licencias de los ficheros afectados. Consultar también los términos del proyecto de origen antes de redistribuir.
+- Licencia de los cambios UWP incorporados: MIT, copyright jajdp (2026); avisos y licencias originales de Mesa se mantienen para los ficheros modificados. Ver `LICENSE` de este directorio.
 - Revisión de Mesa para la que se documentó el parche: `a44c011` (Mesa 26.2.x, commit de referencia del proyecto de origen).
 
 ## Uso
