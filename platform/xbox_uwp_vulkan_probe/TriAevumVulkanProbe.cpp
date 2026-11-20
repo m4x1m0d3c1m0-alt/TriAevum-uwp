@@ -56,8 +56,8 @@ static bool Probe(){
  Log("Loading packaged vulkan_dzn.dll");
  driver=LoadPackagedLibrary(L"vulkan_dzn.dll",0);
  if(!driver){char b[128];sprintf_s(b,"LoadPackagedLibrary failed: %lu",GetLastError());Log(b);return false;}
- gipa=(PFN_vkGetInstanceProcAddr)GetProcAddress(driver,"vkGetInstanceProcAddr");
- if(!gipa){Log("vkGetInstanceProcAddr export missing");return false;}
+ gipa=(PFN_vkGetInstanceProcAddr)GetProcAddress(driver,"vk_icdGetInstanceProcAddr");
+ if(!gipa){Log("vk_icdGetInstanceProcAddr export missing");return false;}
  GLOBAL(pCreateInstance,vkCreateInstance);
  GLOBAL(pEnumInstExt,vkEnumerateInstanceExtensionProperties);
  uint32_t n=0;VkResult r=pEnumInstExt(nullptr,&n,nullptr);Result("Enumerate instance extensions",r);if(r!=VK_SUCCESS)return false;
