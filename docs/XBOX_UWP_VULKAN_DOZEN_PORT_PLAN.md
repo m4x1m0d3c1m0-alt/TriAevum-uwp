@@ -73,3 +73,17 @@ No considerar terminado ningún hito por el mero hecho de compilar o generar un 
 ## Próximo cambio de código
 
 Implementar el probe Vulkan UWP con diagnóstico, no portar todavía el renderer. Es el experimento más pequeño que puede demostrar si la cadena crítica Dozen + DXIL + AppContainer + CoreWindow funciona en la consola objetivo y evita invertir semanas adaptando NRI a una combinación de features que quizá no exista.
+
+
+## Implementación inicial añadida (2026-11-20)
+
+Se ha incorporado una primera infraestructura basada en el material público de `jajdp/smash4-xbox`:
+
+- `third_party/mesa-dozen-uwp/patches/mesa-dozen-xbox.patch`: parche WSI CoreWindow y correcciones Dozen de esa referencia.
+- `third_party/mesa-dozen-uwp/mesa_sysstubs.c` y `mesa_uwp_compat.h`: compatibilidad UWP/clang-cl.
+- `scripts/xbox/prepare-mesa-dozen-uwp.ps1`: fija Mesa en la revisión `a44c011`, prepara los stubs y aplica el parche de forma idempotente.
+- `scripts/xbox/build-mesa-dozen-uwp.ps1`: compila Dozen con entorno VS `x64 store`; prepara un venv Python con Meson/Ninja y dependencias.
+- `platform/xbox_uwp_vulkan_probe/`: aplicación UWP independiente que carga `vulkan_dzn.dll`, crea instancia/dispositivo Vulkan y solicita una swapchain sobre CoreWindow.
+- `scripts/xbox/build-xbox-vulkan-probe.ps1`: empaquetado del probe con Dozen UWP y DXIL.dll proporcionados localmente.
+
+La aplicación registra el resultado en `LocalState\TriAevumVulkanProbe.log`. Aún no se ha compilado en el PC del usuario ni ejecutado en Series S. El siguiente paso es validar el build de Mesa, compilar el APPX, firmarlo e instalarlo. Solo después de confirmar `vkCreateSwapchainKHR(CoreWindow)` se añadirá clear/present y se empezará el inventario de capacidades que necesita TriAevum.
