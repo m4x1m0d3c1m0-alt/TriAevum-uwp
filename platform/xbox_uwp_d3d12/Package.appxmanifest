@@ -2,11 +2,15 @@
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
-  IgnorableNamespaces="uap">
+  xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+  IgnorableNamespaces="uap mp">
   <Identity
     Name="TriAevumXboxDevModeHost"
     Publisher="CN=TriAevumXboxDevMode"
     Version="0.1.0.0" />
+  <mp:PhoneIdentity
+    PhoneProductId="9d67b54e-2b2c-4e71-9a31-6f6f0b8e5c42"
+    PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
     <DisplayName>TriAevum D3D12 Test</DisplayName>
     <PublisherDisplayName>TriAevum Dev Build</PublisherDisplayName>
