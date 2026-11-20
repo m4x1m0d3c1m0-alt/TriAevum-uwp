@@ -24,7 +24,8 @@ try {
 } catch { $tcpOk = $false } finally { $client.Close() }
 Write-Host ("Device Portal TCP 11443: {0}" -f $(if ($tcpOk) { 'ACCESIBLE' } else { 'NO ACCESIBLE' }))
 
-$vswhere = Join-Path $env:ProgramFiles 'Microsoft Visual Studio\Installer\vswhere.exe'
+$programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+$vswhere = Join-Path $programFilesX86 'Microsoft Visual Studio\Installer\vswhere.exe'
 if (Test-Path $vswhere) {
     $vsPath = & $vswhere -latest -products '*' -property installationPath
     if ($vsPath) {
@@ -34,19 +35,32 @@ if (Test-Path $vswhere) {
     } else { Write-Host 'Visual Studio:           no detectado' }
 } else { Write-Host 'Visual Studio Installer: vswhere no encontrado' }
 
-$sdkRoot = Join-Path $env:ProgramFiles(x86) 'Windows Kits\10\Include'
-if (Test-Path $sdkRoot) {
-    $sdks = Get-ChildItem $sdkRoot -Directory | Where-Object {
-        try {
-            $version = [version]$_.Name
-            ($version.Major -eq 10 -and $version.Minor -eq 0)
-        } catch { $false }
-    } | Sort-Object { [version]$_.Name } -Descending
-    if ($sdks) {
-        Write-Host 'Windows SDK(s):'
-        $sdks | ForEach-Object { Write-Host "  $($_.Name)" }
-    } else { Write-Host 'Windows SDK:             no detectado' }
-} else { Write-Host 'Windows SDK:             no detectado' }
+# Validate actual SDK headers and libraries rather than relying on a fragile version regex.
+$sdkRoot = Join-Path $programFilesX86 'Windows Kits\10'
+$includeRoot = Join-Path $sdkRoot 'Include'
+$libRoot = Join-Path $sdkRoot 'Lib'
+$validSdks = @()
+if ((Test-Path $includeRoot) -and (Test-Path $libRoot)) {
+    foreach ($includeDir in (Get-ChildItem $includeRoot -Directory -ErrorAction SilentlyContinue)) {
+        $version = $includeDir.Name
+        $header = Join-Path $includeDir.FullName 'um\Windows.h'
+        $libDir = Join-Path $libRoot $version
+        if ((Test-Path $header) -and (Test-Path $libDir)) {
+            $validSdks += $version
+        }
+    }
+}
+if ($validSdks.Count -gt 0) {
+    Write-Host 'Windows SDK(s):'
+    $validSdks | ForEach-Object { Write-Host "  $_" }
+    if ($validSdks -contains '10.0.26100.0') {
+        Write-Host 'SDK recomendado:         10.0.26100.0'
+    } else {
+        Write-Host "SDK recomendado:         $($validSdks[-1])"
+    }
+} else {
+    Write-Host 'Windows SDK:             no detectado (faltan cabeceras o librerias verificables)'
+}
 
 Write-Host ''
 Write-Host "Device Portal: https://$($XboxIp):11443" -ForegroundColor Yellow
