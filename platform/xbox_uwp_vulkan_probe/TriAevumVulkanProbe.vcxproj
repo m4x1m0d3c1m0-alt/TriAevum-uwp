@@ -58,7 +58,17 @@
       <AdditionalDependencies>windowsapp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
+  <PropertyGroup>
+    <MesaUwpOutput Condition="'$(MesaUwpOutput)'==''">$(MSBuildThisFileDirectory)..\..\..\mesa-dozen\build-uwp\src\microsoft\vulkan</MesaUwpOutput>
+    <DxilValidatorPath Condition="'$(DxilValidatorPath)'==''">$(MSBuildThisFileDirectory)..\..\..\DXIL.dll</DxilValidatorPath>
+  </PropertyGroup>
   <ItemGroup>
+    <Content Include="$(MesaUwpOutput)\vulkan_dzn.dll">
+      <Link>vulkan_dzn.dll</Link><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="$(DxilValidatorPath)">
+      <Link>DXIL.dll</Link><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <AppxManifest Include="Package.appxmanifest">
       <SubType>Designer</SubType>
     </AppxManifest>
