@@ -15,7 +15,7 @@ $toolchain = if ($env:SMASH4_TOOLCHAIN) { $env:SMASH4_TOOLCHAIN } else { 'D:\sma
 $ErrorActionPreference = 'Continue'
 
 $sp = $PSScriptRoot
-$vswhere = Join-Path "$env:ProgramFiles(x86)" 'Microsoft Visual Studio\Installer\vswhere.exe'
+$vswhere = Join-Path "${env:ProgramFiles(x86)}" 'Microsoft Visual Studio\Installer\vswhere.exe'
 $vcvarsall = $null
 if (Test-Path $vswhere) {
     $vsRoot = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
