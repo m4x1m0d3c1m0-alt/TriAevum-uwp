@@ -1,5 +1,5 @@
 param(
-  [string]$MesaDirectory = $(if ($env:SMASH4_MESA) { $env:SMASH4_MESA } else { "C:\mesa-dozen" }),
+  [string]$MesaDirectory = $(if ($env:SMASH4_MESA) { $env:SMASH4_MESA } else { "C:\mesa-dozen" })
 )
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
