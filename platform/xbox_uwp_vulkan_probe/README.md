@@ -2,7 +2,7 @@
 
 Proyecto UWP independiente, basado en la estructura CoreWindow del host D3D12 de TriAevum y en el WSI CoreWindow documentado por jajdp/smash4-xbox.
 
-El ejecutable carga `vulkan_dzn.dll` desde el paquete (sin loader Vulkan de escritorio), resuelve `vkGetInstanceProcAddr`, crea una instancia Vulkan, enumera GPU y extensiones, crea una superficie usando el CoreWindow real, selecciona una cola gráfica, crea un dispositivo y solicita una swapchain.
+El ejecutable carga `vulkan_dzn.dll` desde el paquete (sin loader Vulkan de escritorio), resuelve la entrada ICD `vk_icdGetInstanceProcAddr` (sin cargar `vulkan-1.dll` ni un loader desktop), crea una instancia Vulkan, enumera GPU y extensiones, crea una superficie usando el CoreWindow real, selecciona una cola gráfica, crea un dispositivo y solicita una swapchain.
 
 ## Requisitos
 
