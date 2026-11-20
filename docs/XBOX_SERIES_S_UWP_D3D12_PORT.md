@@ -160,3 +160,31 @@ development certificate. No installable package has been produced, and the
 host has not been deployed to or executed on the Xbox. Suspend/resume,
 window-size changes, controller input, and device-loss recovery remain future
 work. The Vulkan renderer is unchanged.
+
+
+## Revisión de estrategia: Vulkan sobre Mesa Dozen (2026-11-20)
+
+La investigación posterior cambia la prioridad técnica: la ruta preferida pasa a ser conservar el renderer Vulkan y ejecutarlo sobre Mesa Dozen (Vulkan sobre D3D12), en vez de reescribir inmediatamente el renderer completo a D3D12.
+
+Referencias técnicas:
+- https://github.com/jajdp/smash4-xbox — referencia principal para el trabajo específico de Dozen dentro de un AppContainer: build UWP de Mesa, DXIL, system stubs, WSI CoreWindow y diagnóstico de límites/bugs.
+- https://github.com/JYRS20/WWHD-UWP — referencia complementaria para SDL3/UWP y adaptación de aplicación, con pruebas comunicadas en Series S.
+
+**Advertencia de hardware:** jajdp/smash4-xbox informa de pruebas en Series X y dice expresamente que Series S no se ha probado. Sus resultados no garantizan compatibilidad ni rendimiento en Series S. WWHD-UWP comunica pruebas de usuario en Series S, pero no usa el renderer de TriAevum.
+
+### Estado real del host D3D12 existente
+
+El proyecto UWP independiente compila y el paquete Debug 0.1.0.1 se pudo firmar, pero al intentar iniciarlo en la consola devolvió `0x8027025b` (fallo al iniciar). Todavía no se ha recuperado el log de LocalState y el Device Portal dejó de responder a peticiones HTTP aunque el puerto TCP/TLS seguía accesible. Por tanto, **no se ha validado el arranque del host en Xbox ni su presentación**. Este host se conserva como material de diagnóstico, no como un port funcional.
+
+### Primera puerta obligatoria de la nueva ruta
+
+Antes de conectar NRI o el renderer del juego, crear una prueba Vulkan UWP independiente que:
+1. cargue Dozen y DXIL desde el paquete UWP;
+2. inicialice Vulkan y registre dispositivo, extensiones, features, formatos y límites reales;
+3. cree superficie CoreWindow y swapchain;
+4. limpie y presente fotogramas;
+5. escriba un log persistente con cada etapa y resultado.
+
+Solo después de ejecutar esa prueba en Series S se hará un inventario de requisitos del renderer Vulkan/NRI de TriAevum frente a las capacidades reales. Las limitaciones conocidas de Dozen (por ejemplo BDA, memoria externa y límites de storage buffers) se tratarán como requisitos a verificar, no como workarounds que deban copiarse automáticamente de otro juego.
+
+El plan detallado está en [XBOX_UWP_VULKAN_DOZEN_PORT_PLAN.md](XBOX_UWP_VULKAN_DOZEN_PORT_PLAN.md).
