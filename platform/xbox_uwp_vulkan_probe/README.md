@@ -16,15 +16,15 @@ El ejecutable carga `vulkan_dzn.dll` desde el paquete (sin loader Vulkan de escr
 
 Desde la raíz del repositorio:
 
-\`\`\`powershell
-$env:SMASH4_MESA = 'C:\\mesa-dozen'
-.\\scripts\\xbox\\prepare-mesa-dozen-uwp.ps1
+~~~powershell
+$env:SMASH4_MESA = 'C:\mesa-dozen'
+.\scripts\xbox\\prepare-mesa-dozen-uwp.ps1
 # Instala Meson/Ninja y dependencias Python de Mesa; después:
-.\\scripts\\xbox\\build-mesa-dozen-uwp.ps1
-$env:VULKAN_SDK = 'C:\\VulkanSDK\\<version>'
-$env:DXIL_VALIDATOR_DLL = 'C:\\ruta\\DXIL.dll'
-.\\scripts\\xbox\\build-xbox-vulkan-probe.ps1
-\`\`\`
+.\scripts\xbox\\build-mesa-dozen-uwp.ps1
+$env:VULKAN_SDK = 'C:\VulkanSDK\\<version>'
+$env:DXIL_VALIDATOR_DLL = 'C:\ruta\DXIL.dll'
+.\scripts\xbox\\build-xbox-vulkan-probe.ps1
+~~~
 
 No se descargan ni redistribuyen DXIL.dll ni binarios precompilados de Mesa. El probe empaqueta la DLL Dozen UWP compilada y el validador DXIL que proporciona el usuario.
 
