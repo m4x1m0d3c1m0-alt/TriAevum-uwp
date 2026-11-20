@@ -35,9 +35,15 @@ recovery remain outside this first smoke test.
 
 ## Build gate
 
-1. Open `TriAevumXboxUwpHost.vcxproj` in Visual Studio 2026.
-2. Select `Debug` and `x64`, then build.
-3. Resolve any SDK/project-system or C++/WinRT errors from the actual build log.
+Run the included script from a Visual Studio 2026 Developer PowerShell opened at the repository root:
+
+```powershell
+.\scripts\xbox\build-xbox-uwp-host.ps1
+```
+
+It builds `TriAevumXboxUwpHost.vcxproj` as `Debug|x64` against SDK 10.0.26100.0 and writes a detailed log to `build-logs\xbox-uwp-d3d12-host-build.log`. If it fails, send that log for diagnosis. You can also open the `.vcxproj` directly in Visual Studio and build `Debug|x64`.
+
+After a successful compile, resolve any package-signing requirement before attempting installation.
 4. Configure a test signing certificate, build the package, and only then deploy
    it through Xbox Device Portal.
 5. Verify the blue clear/present loop on the Series S.
