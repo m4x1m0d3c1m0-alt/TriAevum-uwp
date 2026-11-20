@@ -124,7 +124,10 @@ void GfxRenderingAPIVulkan::CreateInstance() {
 }
 
 void GfxRenderingAPIVulkan::CreateSurface() {
-    auto* window = static_cast<SDL_Window*>(mWindowBackend->GetNativeWindow());
+    auto* sdlWindowBackend = dynamic_cast<GfxWindowBackendSDL2*>(mWindowBackend);
+    if (sdlWindowBackend == nullptr)
+        throw std::runtime_error("SDL Vulkan surface requested without an SDL2 window provider");
+    auto* window = static_cast<SDL_Window*>(sdlWindowBackend->GetNativeWindow());
 #ifdef _WIN32
     SDL_SysWMinfo windowInfo{};
     SDL_VERSION(&windowInfo.version);
