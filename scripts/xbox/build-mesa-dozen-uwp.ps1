@@ -77,6 +77,7 @@ if (-not $SoloNinja) {
     $cross = "$arbol\uwp\cross-uwp.ini"
     # Meson lee el .ini como texto: la ruta de la cabecera forzada va con barras normales.
     $compat = ($arbol -replace '\\', '/') + '/uwp/mesa_uwp_compat.h'
+    $stubsMeson = $stubs -replace '\\', '/'
     @"
 # Generado por mesa_uwp.ps1. Compila Dozen con el ABI de MSVC y la familia APP.
 [binaries]
@@ -99,8 +100,8 @@ cpp_args = ['-DNOMINMAX', '-Wno-error', '/FI$compat']
 # WindowsApp.lib: en UWP es la que trae las APIs del sistema. Sin ella no se resuelve ni
 # GetProcAddress ni lo que el propio CRT necesita (QueryPerformanceCounter, RoInitialize...),
 # y meson lo cuenta como «no encuentro d3d12», que es lo ultimo que intentaba enlazar.
-c_link_args = [$($stubs -replace '\\', '/'), 'WindowsApp.lib']
-cpp_link_args = [$($stubs -replace '\\', '/'), 'WindowsApp.lib']
+c_link_args = ['$stubsMeson', 'WindowsApp.lib']
+cpp_link_args = ['$stubsMeson', 'WindowsApp.lib']
 b_vscrt = 'md'
 
 [host_machine]
