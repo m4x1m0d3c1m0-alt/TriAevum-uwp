@@ -69,3 +69,14 @@ Antes de enlazar el backend real, amplié el probe a la versión 0.1.0.4 para qu
 - capacidades de superficie y formatos de presentación.
 
 La razón para hacer este paso antes del dispatch UWP es evitar implementar un camino NRI/renderer que active características que el driver de Xbox no ofrece. La versión 0.1.0.4 es una prueba de diagnóstico; todavía no modifica el backend de TriAevum.
+
+
+## Perfil de capacidades observado en Xbox Series S (probe 0.1.0.4)
+
+El log de la consola identifica `Microsoft Direct3D12 (SraKmd_arden)`, Vulkan `1.2.354`, vendor `1414`, device `d000`. El sondeo de características core/Vulkan 1.2 informa:
+- Disponibles: `geometryShader`, `independentBlend`, `samplerAnisotropy`, `textureCompressionBC`, `multiDrawIndirect`, `shaderStorageImageWriteWithoutFormat`, `shaderFloat64`, `shaderInt64`, `timelineSemaphore`, `scalarBlockLayout`, `uniformBufferStandardLayout`.
+- No disponibles: `tessellationShader`, `shaderInt16`, `shaderFloat16`, `shaderInt8`, `descriptorIndexing`, `runtimeDescriptorArray`, `descriptorBindingPartiallyBound`, `bufferDeviceAddress`, `multiViewport`, `wideLines`.
+- Las extensiones `VK_KHR_synchronization2` y `VK_KHR_dynamic_rendering` aparecen enumeradas. El log 0.1.0.4 no consultó sus bits de feature, por lo que su presencia en la lista no debe confundirse con soporte habilitable. El probe 0.1.0.5 añade la consulta explícita.
+- El backend existente ya hace opcionales NIS/FSR en función de features de descriptor update-after-bind y shaderInt16, respectivamente. El perfil medido apunta a mantener ambas rutas desactivadas en la primera integración UWP.
+
+El perfil es evidencia del ICD Dozen en esta consola, no una certificación de que todas las rutas Vulkan del renderer sean compatibles. Antes de activar NRI hay que confirmar synchronization2 y revisar su contrato de features; antes de integrar shaders hay que comprobar los formatos/operaciones que realmente usan.
