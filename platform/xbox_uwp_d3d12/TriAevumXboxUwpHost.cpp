@@ -7,12 +7,17 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdio>
+#include <cstring>
+#include <exception>
+#include <string>
 
 #include <winrt/base.h>
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.ApplicationModel.Core.h>
 #include <winrt/Windows.Graphics.Display.h>
 #include <winrt/Windows.UI.Core.h>
+#include <winrt/Windows.Storage.h>
 
 namespace core = winrt::Windows::ApplicationModel::Core;
 namespace display = winrt::Windows::Graphics::Display;
@@ -24,11 +29,73 @@ namespace {
 
 constexpr UINT kFrameCount = 2;
 
+HANDLE g_diagnosticFile = INVALID_HANDLE_VALUE;
+const char* g_diagnosticStage = "Startup";
+
+void OpenDiagnosticLog() noexcept {
+    try {
+        const auto folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
+        std::wstring path = folder.Path().c_str();
+        path += L"\\TriAevumXboxUwpHost.log";
+        g_diagnosticFile = CreateFileW(
+            path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE,
+            nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (g_diagnosticFile == INVALID_HANDLE_VALUE) {
+            char message[128]{};
+            std::snprintf(message, sizeof(message),
+                "Could not open LocalState diagnostic log; Win32 error=%lu",
+                static_cast<unsigned long>(GetLastError()));
+            OutputDebugStringA(message);
+            OutputDebugStringA("\\r\\n");
+            return;
+        }
+        LogDiagnostic("===== TriAevum Xbox UWP host diagnostic session =====");
+        LogDiagnostic("Log location: ApplicationData\\LocalFolder\\TriAevumXboxUwpHost.log");
+    } catch (...) {
+        OutputDebugStringA("Could not initialize the app LocalState diagnostic log\\r\\n");
+    }
+}
+
+void LogDiagnostic(const char* message) noexcept {
+    if (!message) return;
+    OutputDebugStringA(message);
+    OutputDebugStringA("\\r\\n");
+    if (g_diagnosticFile != INVALID_HANDLE_VALUE) {
+        DWORD written = 0;
+        const DWORD length = static_cast<DWORD>(std::strlen(message));
+        WriteFile(g_diagnosticFile, message, length, &written, nullptr);
+        static constexpr char newline[] = "\\r\\n";
+        WriteFile(g_diagnosticFile, newline, 2, &written, nullptr);
+        FlushFileBuffers(g_diagnosticFile);
+    }
+}
+
+void LogHresultDiagnostic(const char* label, HRESULT hr) noexcept {
+    char message[256]{};
+    std::snprintf(message, sizeof(message),
+        "%s | stage=%s | HRESULT=0x%08lX",
+        label ? label : "HRESULT failure",
+        g_diagnosticStage ? g_diagnosticStage : "unknown",
+        static_cast<unsigned long>(hr));
+    LogDiagnostic(message);
+}
+
+void CloseDiagnosticLog() noexcept {
+    if (g_diagnosticFile != INVALID_HANDLE_VALUE) {
+        FlushFileBuffers(g_diagnosticFile);
+        CloseHandle(g_diagnosticFile);
+        g_diagnosticFile = INVALID_HANDLE_VALUE;
+    }
+}
+
 struct D3D12CoreWindowView
     : winrt::implements<D3D12CoreWindowView, core::IFrameworkView> {
-    void Initialize(core::CoreApplicationView const&) {}
+    void Initialize(core::CoreApplicationView const&) {
+        LogDiagnostic("IFrameworkView.Initialize");
+    }
 
     void SetWindow(ui::CoreWindow const& window) {
+        LogDiagnostic("IFrameworkView.SetWindow");
         m_window = window;
         m_window.Closed([this](ui::CoreWindow const&, ui::CoreWindowEventArgs const&) {
             m_closed = true;
@@ -38,17 +105,51 @@ struct D3D12CoreWindowView
     void Load(winrt::hstring const&) {}
 
     void Run() {
-        m_window.Activate();
-        CreateDeviceResources();
-        CreateWindowResources();
+        OpenDiagnosticLog();
+        LogDiagnostic("Run entered");
+        try {
+            g_diagnosticStage = "CoreWindow.Activate";
+            LogDiagnostic("Activating CoreWindow");
+            m_window.Activate();
+            LogDiagnostic("CoreWindow activated");
 
-        while (!m_closed) {
-            m_window.Dispatcher().ProcessEvents(
-                ui::CoreProcessEventsOption::ProcessAllIfPresent);
-            RenderFrame();
+            g_diagnosticStage = "CreateDeviceResources";
+            LogDiagnostic("Creating D3D12 device resources");
+            CreateDeviceResources();
+            LogDiagnostic("D3D12 device resources created");
+
+            g_diagnosticStage = "CreateWindowResources";
+            LogDiagnostic("Creating CoreWindow swap chain and render targets");
+            CreateWindowResources();
+            LogDiagnostic("Swap chain and render targets created");
+
+            bool firstFrame = true;
+            while (!m_closed) {
+                m_window.Dispatcher().ProcessEvents(
+                    ui::CoreProcessEventsOption::ProcessAllIfPresent);
+                g_diagnosticStage = firstFrame ? "First RenderFrame / Present" : "RenderFrame / Present";
+                RenderFrame();
+                if (firstFrame) {
+                    LogDiagnostic("First Present succeeded");
+                    firstFrame = false;
+                }
+            }
+
+            g_diagnosticStage = "WaitForGpu";
+            WaitForGpu();
+            LogDiagnostic("Run completed normally");
+        } catch (winrt::hresult_error const& error) {
+            LogHresultDiagnostic("WinRT/D3D failure", error.code());
+            LogDiagnostic("The host stopped after the failure recorded above");
+        } catch (std::exception const& error) {
+            LogDiagnostic("C++ std::exception caught");
+            LogDiagnostic(error.what());
+            LogDiagnostic("The host stopped after the exception recorded above");
+        } catch (...) {
+            LogDiagnostic("Unknown exception caught in IFrameworkView::Run");
+            LogDiagnostic("The host stopped after the exception recorded above");
         }
-
-        WaitForGpu();
+        CloseDiagnosticLog();
     }
 
     void Uninitialize() {
@@ -65,16 +166,20 @@ private:
     }
 
     void CreateDeviceResources() {
-        winrt::check_hresult(D3D12CreateDevice(
-            nullptr,
-            D3D_FEATURE_LEVEL_11_0,
-            IID_PPV_ARGS(m_device.GetAddressOf())));
+        g_diagnosticStage = "D3D12CreateDevice";
+        const HRESULT deviceHr = D3D12CreateDevice(
+            nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(m_device.GetAddressOf()));
+        if (FAILED(deviceHr)) LogHresultDiagnostic("D3D12CreateDevice failed", deviceHr);
+        winrt::check_hresult(deviceHr);
 
         D3D12_COMMAND_QUEUE_DESC queueDesc{};
         queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
         queueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
-        winrt::check_hresult(m_device->CreateCommandQueue(
-            &queueDesc, IID_PPV_ARGS(m_queue.GetAddressOf())));
+        g_diagnosticStage = "CreateCommandQueue";
+        const HRESULT queueHr = m_device->CreateCommandQueue(
+            &queueDesc, IID_PPV_ARGS(m_queue.GetAddressOf()));
+        if (FAILED(queueHr)) LogHresultDiagnostic("CreateCommandQueue failed", queueHr);
+        winrt::check_hresult(queueHr);
 
         D3D12_DESCRIPTOR_HEAP_DESC rtvDesc{};
         rtvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
@@ -113,8 +218,11 @@ private:
         const UINT height = (std::max)(1u, static_cast<UINT>(bounds.Height * dpi / 96.0f));
 
         ComPtr<IDXGIFactory2> factory;
-        winrt::check_hresult(CreateDXGIFactory2(
-            0, IID_PPV_ARGS(factory.GetAddressOf())));
+        g_diagnosticStage = "CreateDXGIFactory2";
+        const HRESULT factoryHr = CreateDXGIFactory2(
+            0, IID_PPV_ARGS(factory.GetAddressOf()));
+        if (FAILED(factoryHr)) LogHresultDiagnostic("CreateDXGIFactory2 failed", factoryHr);
+        winrt::check_hresult(factoryHr);
 
         DXGI_SWAP_CHAIN_DESC1 swapDesc{};
         swapDesc.Width = width;
@@ -129,12 +237,12 @@ private:
 
         ComPtr<IDXGISwapChain1> swapChain1;
         // For D3D12 this parameter must be the DIRECT command queue, not the device.
-        winrt::check_hresult(factory->CreateSwapChainForCoreWindow(
-            m_queue.Get(),
-            winrt::get_unknown(m_window),
-            &swapDesc,
-            nullptr,
-            swapChain1.GetAddressOf()));
+        g_diagnosticStage = "CreateSwapChainForCoreWindow";
+        const HRESULT swapChainHr = factory->CreateSwapChainForCoreWindow(
+            m_queue.Get(), winrt::get_unknown(m_window), &swapDesc,
+            nullptr, swapChain1.GetAddressOf());
+        if (FAILED(swapChainHr)) LogHresultDiagnostic("CreateSwapChainForCoreWindow failed", swapChainHr);
+        winrt::check_hresult(swapChainHr);
         winrt::check_hresult(swapChain1.As(&m_swapChain));
 
         auto rtv = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
@@ -175,7 +283,10 @@ private:
 
         ID3D12CommandList* lists[] = { m_commandList.Get() };
         m_queue->ExecuteCommandLists(1, lists);
-        winrt::check_hresult(m_swapChain->Present(1, 0));
+        g_diagnosticStage = "IDXGISwapChain::Present";
+        const HRESULT presentHr = m_swapChain->Present(1, 0);
+        if (FAILED(presentHr)) LogHresultDiagnostic("Present failed", presentHr);
+        winrt::check_hresult(presentHr);
 
         const UINT64 fenceValue = ++m_nextFenceValue;
         winrt::check_hresult(m_queue->Signal(m_fence.Get(), fenceValue));
@@ -230,7 +341,16 @@ struct D3D12CoreWindowViewSource
 } // namespace
 
 int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
-    winrt::init_apartment(winrt::apartment_type::single_threaded);
-    core::CoreApplication::Run(winrt::make<D3D12CoreWindowViewSource>());
+    try {
+        winrt::init_apartment(winrt::apartment_type::single_threaded);
+        LogDiagnostic("wWinMain: apartment initialized");
+        core::CoreApplication::Run(winrt::make<D3D12CoreWindowViewSource>());
+        LogDiagnostic("wWinMain: CoreApplication::Run returned");
+    } catch (winrt::hresult_error const& error) {
+        LogHresultDiagnostic("Unhandled WinRT exception", error.code());
+    } catch (...) {
+        LogDiagnostic("Unhandled exception escaped CoreApplication::Run");
+    }
+    CloseDiagnosticLog();
     return 0;
 }
