@@ -24,7 +24,8 @@ try {
 } catch { $tcpOk = $false } finally { $client.Close() }
 Write-Host ("Device Portal TCP 11443: {0}" -f $(if ($tcpOk) { 'ACCESIBLE' } else { 'NO ACCESIBLE' }))
 
-$programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+# Use the standard Windows Kits path directly; do not depend on environment variables.
+$programFilesX86 = 'C:\Program Files (x86)'
 $vswhere = Join-Path $programFilesX86 'Microsoft Visual Studio\Installer\vswhere.exe'
 if (Test-Path $vswhere) {
     $vsPath = & $vswhere -latest -products '*' -property installationPath
@@ -33,19 +34,20 @@ if (Test-Path $vswhere) {
         $uwpPath = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Workload.Universal -property installationPath
         Write-Host ("Workload UWP:            {0}" -f $(if ($uwpPath) { 'DETECTADO' } else { 'NO DETECTADO (revisar Visual Studio Installer)' }))
     } else { Write-Host 'Visual Studio:           no detectado' }
-} else { Write-Host 'Visual Studio Installer: vswhere no encontrado' }
+} else { Write-Host "Visual Studio Installer: no encontrado en $vswhere" }
 
-# Validate actual SDK headers and libraries rather than relying on a fragile version regex.
-$sdkRoot = Join-Path $programFilesX86 'Windows Kits\10'
+$sdkRoot = 'C:\Program Files (x86)\Windows Kits\10'
 $includeRoot = Join-Path $sdkRoot 'Include'
 $libRoot = Join-Path $sdkRoot 'Lib'
+Write-Host "SDK Include examinado:   $includeRoot"
+Write-Host "SDK Lib examinado:       $libRoot"
 $validSdks = @()
 if ((Test-Path $includeRoot) -and (Test-Path $libRoot)) {
-    foreach ($includeDir in (Get-ChildItem $includeRoot -Directory -ErrorAction SilentlyContinue)) {
+    foreach ($includeDir in (Get-ChildItem -LiteralPath $includeRoot -Directory -ErrorAction SilentlyContinue)) {
         $version = $includeDir.Name
         $header = Join-Path $includeDir.FullName 'um\Windows.h'
         $libDir = Join-Path $libRoot $version
-        if ((Test-Path $header) -and (Test-Path $libDir)) {
+        if ((Test-Path -LiteralPath $header) -and (Test-Path -LiteralPath $libDir)) {
             $validSdks += $version
         }
     }
@@ -59,7 +61,7 @@ if ($validSdks.Count -gt 0) {
         Write-Host "SDK recomendado:         $($validSdks[-1])"
     }
 } else {
-    Write-Host 'Windows SDK:             no detectado (faltan cabeceras o librerias verificables)'
+    Write-Host 'Windows SDK:             NO DETECTADO en la ruta estándar'
 }
 
 Write-Host ''
